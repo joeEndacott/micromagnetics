@@ -1,4 +1,4 @@
-use crate::grid::Grid;
+use crate::{grid::Grid, scalar_field::ScalarField1D};
 
 /// # Vector field 1D
 ///
@@ -180,6 +180,88 @@ impl VectorField1D {
     }
 }
 
+// Vector operations.
+impl VectorField1D {
+    /// # Dot product
+    ///
+    /// ## Description
+    /// Computes the dot product of the current vector field with
+    /// `vector_field`. The result is returned as a scalar field.
+    ///
+    /// ## Example use case
+    /// ```
+    /// let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
+    /// let field_values_1 = vec![[1.0, 2.0, 3.0]; grid.grid_points.len()];
+    /// let field_values_2 = vec![[4.0, 5.0, 6.0]; grid.grid_points.len()];
+    /// let vector_field_1 = VectorField1D::new_vector_field(&grid, field_values_1).unwrap();
+    /// let vector_field_2 = VectorField1D::new_vector_field(&grid, field_values_2).unwrap();
+    /// let new_scalar_field = vector_field_1.dot_product(&vector_field_2);
+    /// ```
+    ///
+    pub fn dot_product(
+        self: &Self,
+        vector_field: &VectorField1D,
+    ) -> Result<ScalarField1D, &'static str> {
+        if self.grid != vector_field.grid {
+            return Err("Grids of the two vector fields do not match");
+        }
+
+        let scalar_field_values: Vec<f64> = self
+            .field_values
+            .iter()
+            .zip(vector_field.field_values.iter())
+            .map(|(v1, v2)| v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2])
+            .collect();
+
+        Ok(ScalarField1D {
+            grid: self.grid.clone(),
+            field_values: scalar_field_values,
+        })
+    }
+
+    /// # Cross product
+    ///
+    /// ## Description
+    /// Computes the cross product of the current vector field with
+    /// `vector_field`. The result is returned as a new vector field.
+    ///
+    /// ## Example use case
+    /// ```
+    /// let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
+    /// let field_values_1 = vec![[1.0, 2.0, 3.0]; grid.grid_points.len()];
+    /// let field_values_2 = vec![[4.0, 5.0, 6.0]; grid.grid_points.len()];
+    /// let vector_field_1 = VectorField1D::new_vector_field(&grid, field_values_1).unwrap();
+    /// let vector_field_2 = VectorField1D::new_vector_field(&grid, field_values_2).unwrap();
+    /// let new_vector_field = vector_field_1.cross_product(&vector_field_2);
+    /// ```
+    ///
+    pub fn cross_product(
+        self: &Self,
+        vector_field: &VectorField1D,
+    ) -> Result<Self, &'static str> {
+        if self.grid != vector_field.grid {
+            return Err("Grids of the two vector fields do not match");
+        }
+
+        let grid = self.grid.clone();
+
+        let field_values: Vec<[f64; 3]> = self
+            .field_values
+            .iter()
+            .zip(vector_field.field_values.iter())
+            .map(|(v1, v2)| {
+                [
+                    v1[1] * v2[2] - v1[2] * v2[1],
+                    v1[2] * v2[0] - v1[0] * v2[2],
+                    v1[0] * v2[1] - v1[1] * v2[0],
+                ]
+            })
+            .collect();
+
+        Ok(VectorField1D { grid, field_values })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -254,6 +336,36 @@ mod tests {
     }
 
     #[test]
+    fn test_dot_product() {
+        let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
+        let field_values_1 = vec![[1.0, 2.0, 3.0]; grid.grid_points.len()];
+        let field_values_2 = vec![[4.0, 5.0, 6.0]; grid.grid_points.len()];
+        let vector_field_1 =
+            VectorField1D::new_vector_field(&grid, field_values_1).unwrap();
+        let vector_field_2 =
+            VectorField1D::new_vector_field(&grid, field_values_2).unwrap();
+        let dot_product_field =
+            vector_field_1.dot_product(&vector_field_2).unwrap();
+        let expected_values = vec![32.0; grid.grid_points.len()];
+        assert_eq!(dot_product_field.field_values, expected_values);
+    }
+
+    #[test]
+    fn test_cross_product() {
+        let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
+        let field_values_1 = vec![[1.0, 2.0, 3.0]; grid.grid_points.len()];
+        let field_values_2 = vec![[4.0, 5.0, 6.0]; grid.grid_points.len()];
+        let vector_field_1 =
+            VectorField1D::new_vector_field(&grid, field_values_1).unwrap();
+        let vector_field_2 =
+            VectorField1D::new_vector_field(&grid, field_values_2).unwrap();
+        let cross_product_field =
+            vector_field_1.cross_product(&vector_field_2).unwrap();
+        let expected_values = vec![[-3.0, 6.0, -3.0]; grid.grid_points.len()];
+        assert_eq!(cross_product_field.field_values, expected_values);
+    }
+
+    #[test]
     fn test_vector_field_1d_debug() {
         let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
         let field_values = vec![[1.0, 0.0, 0.0]; grid.grid_points.len()];
@@ -323,6 +435,42 @@ mod tests {
         let vector_field_2 =
             VectorField1D::new_vector_field(&grid2, field_values_2).unwrap();
         let result = vector_field_1.subtract(&vector_field_2);
+        assert!(result.is_err());
+        assert_eq!(
+            result.err(),
+            Some("Grids of the two vector fields do not match")
+        );
+    }
+
+    #[test]
+    fn test_dot_product_with_mismatched_grids() {
+        let grid1 = Grid::new_uniform_grid(0.0, 1.0, 11);
+        let grid2 = Grid::new_uniform_grid(0.0, 2.0, 11);
+        let field_values_1 = vec![[1.0, 2.0, 3.0]; grid1.grid_points.len()];
+        let field_values_2 = vec![[4.0, 5.0, 6.0]; grid2.grid_points.len()];
+        let vector_field_1 =
+            VectorField1D::new_vector_field(&grid1, field_values_1).unwrap();
+        let vector_field_2 =
+            VectorField1D::new_vector_field(&grid2, field_values_2).unwrap();
+        let result = vector_field_1.dot_product(&vector_field_2);
+        assert!(result.is_err());
+        assert_eq!(
+            result.err(),
+            Some("Grids of the two vector fields do not match")
+        );
+    }
+
+    #[test]
+    fn test_cross_product_with_mismatched_grids() {
+        let grid1 = Grid::new_uniform_grid(0.0, 1.0, 11);
+        let grid2 = Grid::new_uniform_grid(0.0, 2.0, 11);
+        let field_values_1 = vec![[1.0, 2.0, 3.0]; grid1.grid_points.len()];
+        let field_values_2 = vec![[4.0, 5.0, 6.0]; grid2.grid_points.len()];
+        let vector_field_1 =
+            VectorField1D::new_vector_field(&grid1, field_values_1).unwrap();
+        let vector_field_2 =
+            VectorField1D::new_vector_field(&grid2, field_values_2).unwrap();
+        let result = vector_field_1.cross_product(&vector_field_2);
         assert!(result.is_err());
         assert_eq!(
             result.err(),
