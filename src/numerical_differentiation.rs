@@ -112,4 +112,27 @@ impl GridFunction {
             function_values: first_derivative_values,
         }
     }
+
+    /// # Derivative
+    ///
+    /// ## Description
+    /// This function performs the best differentiation scheme available for the
+    /// `GridFunction` object.
+    ///
+    /// Currently, the best differentiation scheme available is the central
+    /// difference scheme.
+    ///
+    /// ## Example use case
+    /// Suppose that we have a `GridFunction` `grid_func` and we want to
+    /// calculate its derivative. The code below does this.
+    /// ```
+    /// let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
+    /// let grid_func = GridFunction::new_grid_function(&grid, |x| x.powi(2));
+    /// let grid_func_derivative = grid_func.derivative();
+    /// ```
+    ///
+    pub fn derivative(self: &Self) -> Self {
+        // Performs the central difference derivative.
+        self.central_difference_derivative()
+    }
 }
