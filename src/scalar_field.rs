@@ -7,6 +7,8 @@ use crate::grid::Grid;
 /// Each grid point has an associated scalar, stored as an `f64`. The grid
 /// points are represented by a `Grid` instance.
 ///
+/// The x axis is the axis along which the grid points lie.
+///
 /// ## Example use case
 /// ```
 /// use crate::grid::Grid;
@@ -15,7 +17,6 @@ use crate::grid::Grid;
 /// let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
 /// let field_values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
 /// let scalar_field = ScalarField1D::new_scalar_field(grid, field_values).unwrap();
-/// println!("{:?}", scalar_field);
 /// ```
 ///
 #[derive(Debug, Clone, PartialEq)]
@@ -26,6 +27,9 @@ pub struct ScalarField1D {
 
 // Constructor functions.
 impl ScalarField1D {
+    /// # New scalar field
+    ///
+    /// ## Description
     /// Creates a new 1D scalar field, with a specified scalar at each grid
     /// point.
     ///
@@ -37,7 +41,6 @@ impl ScalarField1D {
     /// let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
     /// let field_values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
     /// let scalar_field = ScalarField1D::new_scalar_field(grid, field_values).unwrap();
-    /// println!("{:?}", scalar_field);
     /// ```
     ///
     pub fn new_scalar_field(
@@ -52,6 +55,9 @@ impl ScalarField1D {
         Ok(ScalarField1D { grid, field_values })
     }
 
+    /// # New constant scalar field
+    ///
+    /// ## Description
     /// Creates a new 1D scalar field with a constant value at every grid point.
     ///
     /// ## Example use case
@@ -62,7 +68,6 @@ impl ScalarField1D {
     /// let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
     /// let field_value = 5.0;
     /// let scalar_field = ScalarField1D::new_constant_scalar_field(grid, field_value);
-    /// println!("{:?}", scalar_field);
     /// ```
     ///
     pub fn new_constant_scalar_field(
@@ -76,6 +81,9 @@ impl ScalarField1D {
 
 // Arithmetic operations.
 impl ScalarField1D {
+    /// # Add scalar fields
+    ///
+    /// ## Description
     /// Adds `scalar_field` to the current scalar field, and returns this new
     /// scalar field.
     ///
@@ -89,8 +97,7 @@ impl ScalarField1D {
     /// let field_values2 = vec![4.0, 3.0, 2.0, 1.0, 0.0];
     /// let scalar_field1 = ScalarField1D::new_scalar_field(grid.clone(), field_values1).unwrap();
     /// let scalar_field2 = ScalarField1D::new_scalar_field(grid, field_values2).unwrap();
-    /// let result = scalar_field1.add(&scalar_field2).unwrap();
-    /// println!("{:?}", result);
+    /// let scalar_field_sum = scalar_field1.add(&scalar_field2).unwrap();
     /// ```
     ///
     /// ## Todo
@@ -117,6 +124,9 @@ impl ScalarField1D {
         })
     }
 
+    /// # Subtract scalar fields
+    ///
+    /// ## Description
     /// Subtracts `scalar_field` from the current scalar field, and returns this
     /// new scalar field.
     ///
@@ -130,8 +140,7 @@ impl ScalarField1D {
     /// let field_values2 = vec![4.0, 3.0, 2.0, 1.0, 0.0];
     /// let scalar_field1 = ScalarField1D::new_scalar_field(grid.clone(), field_values1).unwrap();
     /// let scalar_field2 = ScalarField1D::new_scalar_field(grid, field_values2).unwrap();
-    /// let result = scalar_field1.subtract(&scalar_field2).unwrap();
-    /// println!("{:?}", result);
+    /// let scalar_field_difference = scalar_field1.subtract(&scalar_field2).unwrap();
     /// ```
     ///
     /// ## Todo
@@ -158,6 +167,9 @@ impl ScalarField1D {
         })
     }
 
+    /// # Multiply scalar fields
+    ///
+    /// ## Description
     /// Multiplies the current scalar field by `scalar_field`, and returns this
     /// new scalar field.
     ///
@@ -171,8 +183,7 @@ impl ScalarField1D {
     /// let field_values2 = vec![4.0, 3.0, 2.0, 1.0, 0.0];
     /// let scalar_field1 = ScalarField1D::new_scalar_field(grid.clone(), field_values1).unwrap();
     /// let scalar_field2 = ScalarField1D::new_scalar_field(grid, field_values2).unwrap();
-    /// let result = scalar_field1.multiply(&scalar_field2).unwrap();
-    /// println!("{:?}", result);
+    /// let scalar_field_product = scalar_field1.multiply(&scalar_field2).unwrap();
     /// ```
     ///
     /// ## Todo
@@ -199,6 +210,9 @@ impl ScalarField1D {
         })
     }
 
+    /// # Divide scalar fields
+    ///
+    /// ## Description
     /// Divides the current scalar field by `scalar_field`, and returns this new
     /// scalar field.
     ///
@@ -212,8 +226,7 @@ impl ScalarField1D {
     /// let field_values2 = vec![2.0, 3.0, 4.0, 5.0, 6.0];
     /// let scalar_field1 = ScalarField1D::new_scalar_field(grid.clone(), field_values1).unwrap();
     /// let scalar_field2 = ScalarField1D::new_scalar_field(grid, field_values2).unwrap();
-    /// let result = scalar_field1.divide(&scalar_field2).unwrap();
-    /// println!("{:?}", result);
+    /// let scalar_field_ratio = scalar_field1.divide(&scalar_field2).unwrap();
     /// ```
     ///
     /// ## Todo
@@ -245,6 +258,9 @@ impl ScalarField1D {
         })
     }
 
+    /// # Scale scalar field.
+    ///
+    /// ## Description
     /// Multiplies the current scalar field by a scalar, and returns this new
     /// scalar field.
     ///
@@ -256,8 +272,7 @@ impl ScalarField1D {
     /// let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
     /// let field_values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
     /// let scalar_field = ScalarField1D::new_scalar_field(grid, field_values).unwrap();
-    /// let result = scalar_field.scale(2.0);
-    /// println!("{:?}", result);
+    /// let scaled_scalar_field = scalar_field.scale(2.0);
     /// ```
     ///
     pub fn scale(&self, scalar: f64) -> Self {
@@ -266,6 +281,91 @@ impl ScalarField1D {
         ScalarField1D {
             grid: self.grid.clone(),
             field_values,
+        }
+    }
+}
+
+// Calculus operations.
+impl ScalarField1D {
+    /// # Partial derivative with respect to x
+    ///
+    /// ## Description
+    /// Calculates the partial derivative of the scalar field with respect to
+    /// x, and returns this result as a new scalar field.
+    ///
+    /// This derivative is calculated using the best differentiation scheme
+    /// currently available.
+    ///
+    /// ## Example use case
+    /// ```
+    /// use crate::grid::Grid;
+    /// use crate::scalar_field::ScalarField1D;
+    ///
+    /// let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
+    /// let field_values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+    /// let scalar_field = ScalarField1D::new_scalar_field(grid, field_values).unwrap();
+    /// let scalar_field_derivative = scalar_field.partial_x();
+    /// ```
+    ///  
+    pub fn partial_x(&self) -> Self {
+        self.central_difference_derivative()
+    }
+
+    /// # Central difference derivative
+    ///
+    /// ## Description
+    /// Calculates the derivative of the scalar field using the central
+    /// difference scheme, and returns this result as a new scalar field.
+    ///
+    /// The derivative at the starting grid point is calculated using the
+    /// forwards difference scheme, the derivative at each interior grid point
+    /// is calculated using the central difference scheme, and the derivative
+    /// at the final grid point is calculated using the backwards difference
+    /// scheme.
+    ///
+    /// ## Example use case
+    /// ```
+    /// use crate::grid::Grid;
+    /// use crate::scalar_field::ScalarField1D;
+    ///
+    /// let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
+    /// let field_values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+    /// let scalar_field = ScalarField1D::new_scalar_field(grid, field_values).unwrap();
+    /// let scalar_field_derivative = scalar_field.central_difference_derivative();
+    /// ```
+    ///
+    pub fn central_difference_derivative(self: &Self) -> Self {
+        let grid = &self.grid;
+        let field_values = &self.field_values;
+
+        let grid_points = &grid.grid_points;
+        let num_points = grid_points.len();
+
+        let mut partial_x_values = Vec::new();
+
+        // Calculates the derivative at the starting grid point using the forwards difference scheme.
+        partial_x_values.push(
+            (field_values[1] - field_values[0])
+                / (grid_points[1] - grid_points[0]),
+        );
+
+        // Calculates the derivative at each interior grid point using the central difference scheme.
+        for i in 1..(num_points - 1) {
+            partial_x_values.push(
+                (field_values[i + 1] - field_values[i - 1])
+                    / (grid_points[i + 1] - grid_points[i - 1]),
+            );
+        }
+
+        // Calculates the derivative at the final grid point using the backwards difference scheme.
+        partial_x_values.push(
+            (field_values[num_points - 1] - field_values[num_points - 2])
+                / (grid_points[num_points - 1] - grid_points[num_points - 2]),
+        );
+
+        ScalarField1D {
+            grid: grid.clone(),
+            field_values: partial_x_values,
         }
     }
 }
@@ -371,6 +471,28 @@ mod tests {
     }
 
     #[test]
+    fn test_partial_x() {
+        let grid = Grid::new_uniform_grid(0.0, 1.0, 6);
+        let field_values = vec![0.0, 0.2, 0.4, 0.6, 0.8, 1.0];
+        let scalar_field =
+            ScalarField1D::new_scalar_field(grid.clone(), field_values)
+                .unwrap();
+        let result = scalar_field.partial_x();
+        assert_eq!(result.field_values, vec![1.0, 1.0, 1.0, 1.0, 1.0]);
+    }
+
+    #[test]
+    fn test_central_difference_derivative() {
+        let grid = Grid::new_uniform_grid(0.0, 1.0, 6);
+        let field_values = vec![0.0, 0.2, 0.4, 0.6, 0.8, 1.0];
+        let scalar_field =
+            ScalarField1D::new_scalar_field(grid.clone(), field_values)
+                .unwrap();
+        let result = scalar_field.central_difference_derivative();
+        assert_eq!(result.field_values, vec![1.0, 1.0, 1.0, 1.0, 1.0]);
+    }
+
+    #[test]
     fn test_new_scalar_field_error() {
         let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
         let field_values = vec![1.0, 2.0, 3.0];
@@ -451,17 +573,5 @@ mod tests {
         let result = scalar_field1.divide(&scalar_field2);
         assert!(result.is_err());
         assert_eq!(result.err().unwrap(), "Grids do not match");
-    }
-
-    #[test]
-    fn test_new_scalar_field_error_handling() {
-        let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
-        let field_values = vec![1.0, 2.0, 3.0]; // Incorrect length
-        let result = ScalarField1D::new_scalar_field(grid, field_values);
-        assert!(result.is_err());
-        assert_eq!(
-            result.err().unwrap(),
-            "Number of field values does not match number of grid points"
-        );
     }
 }
