@@ -1,5 +1,6 @@
 pub mod grid;
 pub mod grid_function;
+pub mod scalar_field;
 // pub mod landau_lifshitz_gilbert_equation;
 pub mod numerical_differentiation;
 pub mod numerical_integration;
