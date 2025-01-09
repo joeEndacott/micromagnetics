@@ -16,7 +16,7 @@ use crate::grid::Grid;
 ///
 /// let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
 /// let field_values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-/// let scalar_field = ScalarField1D::new_scalar_field(grid, field_values).unwrap();
+/// let scalar_field = ScalarField1D::new_scalar_field(&grid, field_values).unwrap();
 /// ```
 ///
 #[derive(Debug, Clone, PartialEq)]
@@ -40,19 +40,53 @@ impl ScalarField1D {
     ///
     /// let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
     /// let field_values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-    /// let scalar_field = ScalarField1D::new_scalar_field(grid, field_values).unwrap();
+    /// let scalar_field = ScalarField1D::new_scalar_field(&grid, &field_values).unwrap();
     /// ```
     ///
     pub fn new_scalar_field(
-        grid: Grid,
-        field_values: Vec<f64>,
+        grid: &Grid,
+        field_values: &Vec<f64>,
     ) -> Result<ScalarField1D, &'static str> {
         if field_values.len() != grid.grid_points.len() {
             return Err(
                 "Number of field values does not match number of grid points",
             );
         }
-        Ok(ScalarField1D { grid, field_values })
+        Ok(ScalarField1D {
+            grid: grid.clone(),
+            field_values: field_values.clone(),
+        })
+    }
+
+    /// # Function to scalar field
+    ///
+    /// ## Description
+    /// Generates a `ScalarField1D`, given a real-valued function of a real
+    /// variable `func` and a `Grid` `grid`. `func` is
+    /// sampled at each grid point in `grid` and the values are stored
+    /// in the field `field_values`.
+    ///
+    /// ## Example use case
+    /// ```
+    /// use crate::grid::Grid;
+    /// use crate::scalar_field::ScalarField1D;
+    ///
+    /// let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
+    /// let scalar_field = ScalarField1D::function_to_scalar_field(&grid, |x| x.powi(2));
+    /// ```    
+    ///
+    pub fn function_to_scalar_field<F>(grid: &Grid, func: F) -> Self
+    where
+        F: Fn(f64) -> f64,
+    {
+        // Creates a vector containing the value of func at each grid point.
+        let function_values: Vec<f64> =
+            grid.grid_points.iter().map(|&x| func(x)).collect();
+
+        ScalarField1D {
+            grid: grid.clone(),
+            field_values: function_values,
+        }
     }
 
     /// # New constant scalar field
@@ -67,15 +101,18 @@ impl ScalarField1D {
     ///
     /// let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
     /// let field_value = 5.0;
-    /// let scalar_field = ScalarField1D::new_constant_scalar_field(grid, field_value);
+    /// let scalar_field = ScalarField1D::new_constant_scalar_field(&grid, field_value);
     /// ```
     ///
     pub fn new_constant_scalar_field(
-        grid: Grid,
+        grid: &Grid,
         field_value: f64,
     ) -> ScalarField1D {
         let field_values = vec![field_value; grid.grid_points.len()];
-        ScalarField1D { grid, field_values }
+        ScalarField1D {
+            grid: grid.clone(),
+            field_values,
+        }
     }
 }
 
@@ -93,10 +130,10 @@ impl ScalarField1D {
     /// use crate::scalar_field::ScalarField1D;
     ///
     /// let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
-    /// let field_values1 = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-    /// let field_values2 = vec![4.0, 3.0, 2.0, 1.0, 0.0];
-    /// let scalar_field1 = ScalarField1D::new_scalar_field(grid.clone(), field_values1).unwrap();
-    /// let scalar_field2 = ScalarField1D::new_scalar_field(grid, field_values2).unwrap();
+    /// let field_values_1 = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+    /// let field_values_2 = vec![4.0, 3.0, 2.0, 1.0, 0.0];
+    /// let scalar_field_1 = ScalarField1D::new_scalar_field(&grid, &field_values_1).unwrap();
+    /// let scalar_field_2 = ScalarField1D::new_scalar_field(&grid, &field_values_2).unwrap();
     /// let scalar_field_sum = scalar_field1.add(&scalar_field2).unwrap();
     /// ```
     ///
@@ -136,11 +173,11 @@ impl ScalarField1D {
     /// use crate::scalar_field::ScalarField1D;
     ///
     /// let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
-    /// let field_values1 = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-    /// let field_values2 = vec![4.0, 3.0, 2.0, 1.0, 0.0];
-    /// let scalar_field1 = ScalarField1D::new_scalar_field(grid.clone(), field_values1).unwrap();
-    /// let scalar_field2 = ScalarField1D::new_scalar_field(grid, field_values2).unwrap();
-    /// let scalar_field_difference = scalar_field1.subtract(&scalar_field2).unwrap();
+    /// let field_values_1 = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+    /// let field_values_2 = vec![4.0, 3.0, 2.0, 1.0, 0.0];
+    /// let scalar_field_1 = ScalarField1D::new_scalar_field(&grid, &field_values_1).unwrap();
+    /// let scalar_field_2 = ScalarField1D::new_scalar_field(&grid, &field_values_2).unwrap();
+    /// let scalar_field_difference = scalar_field_1.subtract(&scalar_field_2).unwrap();
     /// ```
     ///
     /// ## Todo
@@ -179,11 +216,11 @@ impl ScalarField1D {
     /// use crate::scalar_field::ScalarField1D;
     ///
     /// let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
-    /// let field_values1 = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-    /// let field_values2 = vec![4.0, 3.0, 2.0, 1.0, 0.0];
-    /// let scalar_field1 = ScalarField1D::new_scalar_field(grid.clone(), field_values1).unwrap();
-    /// let scalar_field2 = ScalarField1D::new_scalar_field(grid, field_values2).unwrap();
-    /// let scalar_field_product = scalar_field1.multiply(&scalar_field2).unwrap();
+    /// let field_values_1 = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+    /// let field_values_2 = vec![4.0, 3.0, 2.0, 1.0, 0.0];
+    /// let scalar_field_1 = ScalarField1D::new_scalar_field(&grid, &field_values_1).unwrap();
+    /// let scalar_field_2 = ScalarField1D::new_scalar_field(&grid, &field_values_2).unwrap();
+    /// let scalar_field_product = scalar_field_1.multiply(&scalar_field_2).unwrap();
     /// ```
     ///
     /// ## Todo
@@ -222,11 +259,11 @@ impl ScalarField1D {
     /// use crate::scalar_field::ScalarField1D;
     ///
     /// let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
-    /// let field_values1 = vec![4.0, 9.0, 16.0, 25.0, 36.0];
-    /// let field_values2 = vec![2.0, 3.0, 4.0, 5.0, 6.0];
-    /// let scalar_field1 = ScalarField1D::new_scalar_field(grid.clone(), field_values1).unwrap();
-    /// let scalar_field2 = ScalarField1D::new_scalar_field(grid, field_values2).unwrap();
-    /// let scalar_field_ratio = scalar_field1.divide(&scalar_field2).unwrap();
+    /// let field_values_1 = vec![4.0, 9.0, 16.0, 25.0, 36.0];
+    /// let field_values_2 = vec![2.0, 3.0, 4.0, 5.0, 6.0];
+    /// let scalar_field_1 = ScalarField1D::new_scalar_field(&grid, &field_values_1).unwrap();
+    /// let scalar_field_2 = ScalarField1D::new_scalar_field(&grid, &field_values_2).unwrap();
+    /// let scalar_field_ratio = scalar_field_1.divide(&scalar_field_2).unwrap();
     /// ```
     ///
     /// ## Todo
@@ -271,7 +308,7 @@ impl ScalarField1D {
     ///
     /// let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
     /// let field_values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-    /// let scalar_field = ScalarField1D::new_scalar_field(grid, field_values).unwrap();
+    /// let scalar_field = ScalarField1D::new_scalar_field(&grid, &field_values).unwrap();
     /// let scaled_scalar_field = scalar_field.scale(2.0);
     /// ```
     ///
@@ -282,6 +319,39 @@ impl ScalarField1D {
             grid: self.grid.clone(),
             field_values,
         }
+    }
+
+    /// # Test equality
+    ///
+    /// ## Description
+    /// Tests if the current scalar field is equal to another scalar field
+    /// within a specified maximum error.
+    ///
+    /// ## Example use case
+    /// ```
+    /// use crate::grid::Grid;
+    /// use crate::scalar_field::ScalarField1D;
+    ///
+    /// let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
+    /// let field_values_1 = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+    /// scalar_field_1 = ScalarField1D::new_scalar_field(&grid, &field_values_1).unwrap();
+    /// let scalar_field_2 = scalar_field_1.add(&ScalarField1D::new_constant_scalar_field(grid, 1e-7)).unwrap();
+    /// let is_equal = scalar_field_1.test_equality(&scalar_field_2, 1e-6);
+    /// ```
+    ///
+    pub fn test_equality(
+        &self,
+        scalar_field: &ScalarField1D,
+        max_err: f64,
+    ) -> bool {
+        if self.grid != scalar_field.grid {
+            return false;
+        }
+
+        self.field_values
+            .iter()
+            .zip(&scalar_field.field_values)
+            .all(|(v1, v2)| (v1 - v2).abs() < max_err)
     }
 }
 
@@ -303,7 +373,7 @@ impl ScalarField1D {
     ///
     /// let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
     /// let field_values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-    /// let scalar_field = ScalarField1D::new_scalar_field(grid, field_values).unwrap();
+    /// let scalar_field = ScalarField1D::new_scalar_field(&grid, &field_values).unwrap();
     /// let scalar_field_derivative = scalar_field.partial_x();
     /// ```
     ///  
@@ -330,7 +400,7 @@ impl ScalarField1D {
     ///
     /// let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
     /// let field_values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-    /// let scalar_field = ScalarField1D::new_scalar_field(grid, field_values).unwrap();
+    /// let scalar_field = ScalarField1D::new_scalar_field(&grid, &field_values).unwrap();
     /// let scalar_field_derivative = scalar_field.central_difference_derivative();
     /// ```
     ///
@@ -380,8 +450,7 @@ mod tests {
         let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
         let field_values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
         let scalar_field =
-            ScalarField1D::new_scalar_field(grid.clone(), field_values.clone())
-                .unwrap();
+            ScalarField1D::new_scalar_field(&grid, &field_values).unwrap();
         assert_eq!(scalar_field.grid, grid);
         assert_eq!(scalar_field.field_values, field_values);
     }
@@ -391,7 +460,7 @@ mod tests {
         let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
         let field_value = 5.0;
         let scalar_field =
-            ScalarField1D::new_constant_scalar_field(grid.clone(), field_value);
+            ScalarField1D::new_constant_scalar_field(&grid, field_value);
         assert_eq!(scalar_field.grid, grid);
         assert_eq!(
             scalar_field.field_values,
@@ -405,11 +474,9 @@ mod tests {
         let field_values1 = vec![1.0, 2.0, 3.0, 4.0, 5.0];
         let field_values2 = vec![4.0, 3.0, 2.0, 1.0, 0.0];
         let scalar_field1 =
-            ScalarField1D::new_scalar_field(grid.clone(), field_values1)
-                .unwrap();
+            ScalarField1D::new_scalar_field(&grid, &field_values1).unwrap();
         let scalar_field2 =
-            ScalarField1D::new_scalar_field(grid.clone(), field_values2)
-                .unwrap();
+            ScalarField1D::new_scalar_field(&grid, &field_values2).unwrap();
         let result = scalar_field1.add(&scalar_field2).unwrap();
         assert_eq!(result.field_values, vec![5.0, 5.0, 5.0, 5.0, 5.0]);
     }
@@ -420,11 +487,9 @@ mod tests {
         let field_values1 = vec![1.0, 2.0, 3.0, 4.0, 5.0];
         let field_values2 = vec![4.0, 3.0, 2.0, 1.0, 0.0];
         let scalar_field1 =
-            ScalarField1D::new_scalar_field(grid.clone(), field_values1)
-                .unwrap();
+            ScalarField1D::new_scalar_field(&grid, &field_values1).unwrap();
         let scalar_field2 =
-            ScalarField1D::new_scalar_field(grid.clone(), field_values2)
-                .unwrap();
+            ScalarField1D::new_scalar_field(&grid, &field_values2).unwrap();
         let result = scalar_field1.subtract(&scalar_field2).unwrap();
         assert_eq!(result.field_values, vec![-3.0, -1.0, 1.0, 3.0, 5.0]);
     }
@@ -435,11 +500,9 @@ mod tests {
         let field_values1 = vec![1.0, 2.0, 3.0, 4.0, 5.0];
         let field_values2 = vec![4.0, 3.0, 2.0, 1.0, 0.0];
         let scalar_field1 =
-            ScalarField1D::new_scalar_field(grid.clone(), field_values1)
-                .unwrap();
+            ScalarField1D::new_scalar_field(&grid, &field_values1).unwrap();
         let scalar_field2 =
-            ScalarField1D::new_scalar_field(grid.clone(), field_values2)
-                .unwrap();
+            ScalarField1D::new_scalar_field(&grid, &field_values2).unwrap();
         let result = scalar_field1.multiply(&scalar_field2).unwrap();
         assert_eq!(result.field_values, vec![4.0, 6.0, 6.0, 4.0, 0.0]);
     }
@@ -450,11 +513,9 @@ mod tests {
         let field_values1 = vec![4.0, 9.0, 16.0, 25.0, 36.0];
         let field_values2 = vec![2.0, 3.0, 4.0, 5.0, 6.0];
         let scalar_field1 =
-            ScalarField1D::new_scalar_field(grid.clone(), field_values1)
-                .unwrap();
+            ScalarField1D::new_scalar_field(&grid, &field_values1).unwrap();
         let scalar_field2 =
-            ScalarField1D::new_scalar_field(grid.clone(), field_values2)
-                .unwrap();
+            ScalarField1D::new_scalar_field(&grid, &field_values2).unwrap();
         let result = scalar_field1.divide(&scalar_field2).unwrap();
         assert_eq!(result.field_values, vec![2.0, 3.0, 4.0, 5.0, 6.0]);
     }
@@ -464,39 +525,90 @@ mod tests {
         let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
         let field_values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
         let scalar_field =
-            ScalarField1D::new_scalar_field(grid.clone(), field_values)
-                .unwrap();
+            ScalarField1D::new_scalar_field(&grid, &field_values).unwrap();
         let result = scalar_field.scale(2.0);
         assert_eq!(result.field_values, vec![2.0, 4.0, 6.0, 8.0, 10.0]);
     }
 
     #[test]
+    fn test_test_equality() {
+        let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
+        let field_values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+        let scalar_field_1 =
+            ScalarField1D::new_scalar_field(&grid, &field_values).unwrap();
+
+        // Test equality of a scalar field with itself.
+        assert!(scalar_field_1.test_equality(&scalar_field_1, 1e-6));
+
+        // Test equality of a scalar field with a slightly different scalar
+        // field.
+        let mut scalar_field_2 = scalar_field_1
+            .add(&ScalarField1D::new_constant_scalar_field(&grid, 1e-7))
+            .unwrap();
+        assert!(scalar_field_1.test_equality(&scalar_field_2, 1e-6));
+
+        // Test inequality of a scalar field with a different scalar field.
+        scalar_field_2 = scalar_field_1
+            .add(&ScalarField1D::new_constant_scalar_field(&grid, 1e-3))
+            .unwrap();
+        assert!(!scalar_field_1.test_equality(&scalar_field_2, 1e-6));
+    }
+
+    #[test]
     fn test_partial_x() {
-        let grid = Grid::new_uniform_grid(0.0, 1.0, 6);
-        let field_values = vec![0.0, 0.2, 0.4, 0.6, 0.8, 1.0];
+        let grid = Grid::new_uniform_grid(0.0, 1.0, 100);
+
+        // Test the derivative of a constant scalar field.
+        let scalar_field = ScalarField1D::new_constant_scalar_field(&grid, 1.0);
+        let partial_x_scalar_field = scalar_field.partial_x();
+
+        let expected_result =
+            ScalarField1D::new_constant_scalar_field(&grid, 0.0);
+
+        assert!(partial_x_scalar_field.test_equality(&expected_result, 1e-6));
+
+        // Test the derivative of the scalar field x.
         let scalar_field =
-            ScalarField1D::new_scalar_field(grid.clone(), field_values)
-                .unwrap();
-        let result = scalar_field.partial_x();
-        assert_eq!(result.field_values, vec![1.0, 1.0, 1.0, 1.0, 1.0]);
+            ScalarField1D::function_to_scalar_field(&grid, |x| x);
+        let partial_x_scalar_field = scalar_field.partial_x();
+
+        let expected_result =
+            ScalarField1D::new_constant_scalar_field(&grid, 1.0);
+
+        assert!(partial_x_scalar_field.test_equality(&expected_result, 1e-6));
     }
 
     #[test]
     fn test_central_difference_derivative() {
-        let grid = Grid::new_uniform_grid(0.0, 1.0, 6);
-        let field_values = vec![0.0, 0.2, 0.4, 0.6, 0.8, 1.0];
+        let grid = Grid::new_uniform_grid(0.0, 1.0, 100);
+
+        // Test the derivative of a constant scalar field.
+        let scalar_field = ScalarField1D::new_constant_scalar_field(&grid, 1.0);
+        let partial_x_scalar_field =
+            scalar_field.central_difference_derivative();
+
+        let expected_result =
+            ScalarField1D::new_constant_scalar_field(&grid, 0.0);
+
+        assert!(partial_x_scalar_field.test_equality(&expected_result, 1e-6));
+
+        // Test the derivative of the scalar field x.
         let scalar_field =
-            ScalarField1D::new_scalar_field(grid.clone(), field_values)
-                .unwrap();
-        let result = scalar_field.central_difference_derivative();
-        assert_eq!(result.field_values, vec![1.0, 1.0, 1.0, 1.0, 1.0]);
+            ScalarField1D::function_to_scalar_field(&grid, |x| x);
+        let partial_x_scalar_field =
+            scalar_field.central_difference_derivative();
+
+        let expected_result =
+            ScalarField1D::new_constant_scalar_field(&grid, 1.0);
+
+        assert!(partial_x_scalar_field.test_equality(&expected_result, 1e-6));
     }
 
     #[test]
     fn test_new_scalar_field_error() {
         let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
         let field_values = vec![1.0, 2.0, 3.0];
-        let result = ScalarField1D::new_scalar_field(grid, field_values);
+        let result = ScalarField1D::new_scalar_field(&grid, &field_values);
         assert!(result.is_err());
         assert_eq!(
             result.err().unwrap(),
@@ -511,9 +623,9 @@ mod tests {
         let field_values1 = vec![1.0, 2.0, 3.0, 4.0, 5.0];
         let field_values2 = vec![4.0, 3.0, 2.0, 1.0, 0.0];
         let scalar_field1 =
-            ScalarField1D::new_scalar_field(grid1, field_values1).unwrap();
+            ScalarField1D::new_scalar_field(&grid1, &field_values1).unwrap();
         let scalar_field2 =
-            ScalarField1D::new_scalar_field(grid2, field_values2).unwrap();
+            ScalarField1D::new_scalar_field(&grid2, &field_values2).unwrap();
         let result = scalar_field1.add(&scalar_field2);
         assert!(result.is_err());
         assert_eq!(result.err().unwrap(), "Grids do not match");
@@ -526,9 +638,9 @@ mod tests {
         let field_values1 = vec![1.0, 2.0, 3.0, 4.0, 5.0];
         let field_values2 = vec![4.0, 3.0, 2.0, 1.0, 0.0];
         let scalar_field1 =
-            ScalarField1D::new_scalar_field(grid1, field_values1).unwrap();
+            ScalarField1D::new_scalar_field(&grid1, &field_values1).unwrap();
         let scalar_field2 =
-            ScalarField1D::new_scalar_field(grid2, field_values2).unwrap();
+            ScalarField1D::new_scalar_field(&grid2, &field_values2).unwrap();
         let result = scalar_field1.subtract(&scalar_field2);
         assert!(result.is_err());
         assert_eq!(result.err().unwrap(), "Grids do not match");
@@ -541,9 +653,9 @@ mod tests {
         let field_values1 = vec![1.0, 2.0, 3.0, 4.0, 5.0];
         let field_values2 = vec![4.0, 3.0, 2.0, 1.0, 0.0];
         let scalar_field1 =
-            ScalarField1D::new_scalar_field(grid1, field_values1).unwrap();
+            ScalarField1D::new_scalar_field(&grid1, &field_values1).unwrap();
         let scalar_field2 =
-            ScalarField1D::new_scalar_field(grid2, field_values2).unwrap();
+            ScalarField1D::new_scalar_field(&grid2, &field_values2).unwrap();
         let result = scalar_field1.multiply(&scalar_field2);
         assert!(result.is_err());
         assert_eq!(result.err().unwrap(), "Grids do not match");
@@ -556,18 +668,16 @@ mod tests {
         let field_values1 = vec![4.0, 9.0, 16.0, 25.0, 36.0];
         let field_values2 = vec![2.0, 3.0, 4.0, 5.0, 0.0];
         let scalar_field1 =
-            ScalarField1D::new_scalar_field(grid1.clone(), field_values1)
-                .unwrap();
+            ScalarField1D::new_scalar_field(&grid1, &field_values1).unwrap();
         let scalar_field2 =
-            ScalarField1D::new_scalar_field(grid1.clone(), field_values2)
-                .unwrap();
+            ScalarField1D::new_scalar_field(&grid1, &field_values2).unwrap();
         let result = scalar_field1.divide(&scalar_field2);
         assert!(result.is_err());
         assert_eq!(result.err().unwrap(), "Division by zero");
 
         let scalar_field2 = ScalarField1D::new_scalar_field(
-            grid2,
-            vec![2.0, 3.0, 4.0, 5.0, 6.0],
+            &grid2,
+            &vec![2.0, 3.0, 4.0, 5.0, 6.0],
         )
         .unwrap();
         let result = scalar_field1.divide(&scalar_field2);

@@ -18,7 +18,7 @@ use crate::{grid::Grid, scalar_field::ScalarField1D};
 ///
 /// let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
 /// let field_values = vec![[1.0, 0.0, 0.0]; grid.grid_points.len()];
-/// let vector_field = VectorField1D::new_vector_field(&grid, field_values).unwrap();
+/// let vector_field = VectorField1D::new_vector_field(&grid, &field_values).unwrap();
 /// ```
 ///
 #[derive(Debug, Clone, PartialEq)]
@@ -47,7 +47,7 @@ impl VectorField1D {
     ///
     pub fn new_vector_field(
         grid: &Grid,
-        field_values: Vec<[f64; 3]>,
+        field_values: &Vec<[f64; 3]>,
     ) -> Result<VectorField1D, &'static str> {
         if grid.grid_points.len() != field_values.len() {
             return Err(
@@ -55,9 +55,10 @@ impl VectorField1D {
             );
         }
 
-        let grid = grid.clone();
-
-        Ok(VectorField1D { grid, field_values })
+        Ok(VectorField1D {
+            grid: grid.clone(),
+            field_values: field_values.clone(),
+        })
     }
 
     /// # New constant vector field
@@ -80,10 +81,12 @@ impl VectorField1D {
         grid: &Grid,
         field_value: [f64; 3],
     ) -> VectorField1D {
-        let grid = grid.clone();
         let field_values = vec![field_value; grid.grid_points.len()];
 
-        VectorField1D { grid, field_values }
+        VectorField1D {
+            grid: grid.clone(),
+            field_values,
+        }
     }
 
     /// # Vector field to scalar fields
@@ -143,21 +146,19 @@ impl VectorField1D {
     /// let vector_field_x_values = ScalarField1D::new_constant_scalar_field(&grid, 1.0);
     /// let vector_field_y_values = ScalarField1D::new_constant_scalar_field(&grid, 2.0);
     /// let vector_field_z_values = ScalarField1D::new_constant_scalar_field(&grid, 3.0);
-    /// let vector_field = VectorField1D::scalar_fields_to_vector_field((vector_field_x_values, vector_field_y_values, vector_field_z_values));
+    /// let vector_field = VectorField1D::scalar_fields_to_vector_field((&vector_field_x_values, &vector_field_y_values, &vector_field_z_values));
     /// ```
     ///
     pub fn scalar_fields_to_vector_field(
         (x_values, y_values, z_values): (
-            ScalarField1D,
-            ScalarField1D,
-            ScalarField1D,
+            &ScalarField1D,
+            &ScalarField1D,
+            &ScalarField1D,
         ),
     ) -> Result<Self, &'static str> {
         if x_values.grid != y_values.grid || y_values.grid != z_values.grid {
             return Err("Grids of the scalar fields do not match");
         }
-
-        let grid = x_values.grid.clone();
 
         let field_values: Vec<[f64; 3]> = x_values
             .field_values
@@ -171,7 +172,10 @@ impl VectorField1D {
             .map(|(x, (y, z))| [*x, *y, *z])
             .collect();
 
-        Ok(VectorField1D { grid, field_values })
+        Ok(VectorField1D {
+            grid: x_values.grid.clone(),
+            field_values,
+        })
     }
 }
 
@@ -207,8 +211,6 @@ impl VectorField1D {
             return Err("Grids of the two vector fields do not match");
         }
 
-        let grid = self.grid.clone();
-
         // Sums the field values of the two vector fields.
         let field_values: Vec<[f64; 3]> = self
             .field_values
@@ -217,7 +219,10 @@ impl VectorField1D {
             .map(|(v1, v2)| [v1[0] + v2[0], v1[1] + v2[1], v1[2] + v2[2]])
             .collect();
 
-        Ok(VectorField1D { grid, field_values })
+        Ok(VectorField1D {
+            grid: self.grid.clone(),
+            field_values,
+        })
     }
 
     /// # Subtract vector fields
@@ -250,8 +255,6 @@ impl VectorField1D {
             return Err("Grids of the two vector fields do not match");
         }
 
-        let grid = self.grid.clone();
-
         // Subtracts the field values of the two vector fields.
         let field_values: Vec<[f64; 3]> = self
             .field_values
@@ -260,7 +263,10 @@ impl VectorField1D {
             .map(|(v1, v2)| [v1[0] - v2[0], v1[1] - v2[1], v1[2] - v2[2]])
             .collect();
 
-        Ok(VectorField1D { grid, field_values })
+        Ok(VectorField1D {
+            grid: self.grid.clone(),
+            field_values,
+        })
     }
 
     /// # Scale vector field
@@ -281,8 +287,6 @@ impl VectorField1D {
     /// ```
     ///
     pub fn scale(self: &Self, scalar: f64) -> Self {
-        let grid = self.grid.clone();
-
         // Scales the field values of the vector field by scalar.
         let field_values: Vec<[f64; 3]> = self
             .field_values
@@ -290,7 +294,10 @@ impl VectorField1D {
             .map(|v| [v[0] * scalar, v[1] * scalar, v[2] * scalar])
             .collect();
 
-        VectorField1D { grid, field_values }
+        VectorField1D {
+            grid: self.grid.clone(),
+            field_values,
+        }
     }
 }
 
@@ -364,8 +371,6 @@ impl VectorField1D {
             return Err("Grids of the two vector fields do not match");
         }
 
-        let grid = self.grid.clone();
-
         let field_values: Vec<[f64; 3]> = self
             .field_values
             .iter()
@@ -379,7 +384,10 @@ impl VectorField1D {
             })
             .collect();
 
-        Ok(VectorField1D { grid, field_values })
+        Ok(VectorField1D {
+            grid: self.grid.clone(),
+            field_values,
+        })
     }
 }
 
@@ -406,8 +414,6 @@ impl VectorField1D {
     /// ```
     ///
     pub fn partial_x(self: &Self) -> Self {
-        let grid = self.grid.clone();
-
         // Decompose the vector field into three scalar fields.
         let (x_values, y_values, z_values) =
             self.vector_field_to_scalar_fields();
@@ -422,14 +428,14 @@ impl VectorField1D {
         // Combine the partial derivatives into a new vector field.
         let partial_x_vector_field =
             VectorField1D::scalar_fields_to_vector_field((
-                partial_x_x_values,
-                partial_x_y_values,
-                partial_x_z_values,
+                &partial_x_x_values,
+                &partial_x_y_values,
+                &partial_x_z_values,
             ))
             .unwrap();
 
         VectorField1D {
-            grid,
+            grid: self.grid.clone(),
             field_values: partial_x_vector_field.field_values,
         }
     }
@@ -456,14 +462,12 @@ impl VectorField1D {
     /// ```
     ///
     pub fn laplacian(self: &Self) -> Self {
-        let grid = self.grid.clone();
-
         // Compute the second partial derivative of the vector field with
         // respect to x.
         let partial_x_x_vector_field = self.partial_x().partial_x();
 
         VectorField1D {
-            grid,
+            grid: self.grid.clone(),
             field_values: partial_x_x_vector_field.field_values,
         }
     }
@@ -491,8 +495,6 @@ impl VectorField1D {
     /// ```
     ///
     pub fn divergence(self: &Self) -> ScalarField1D {
-        let grid = self.grid.clone();
-
         // Decompose the vector field into three scalar fields.
         let (x_values, _, _) = self.vector_field_to_scalar_fields();
 
@@ -501,7 +503,7 @@ impl VectorField1D {
         let partial_x_values = x_values.partial_x();
 
         ScalarField1D {
-            grid,
+            grid: self.grid.clone(),
             field_values: partial_x_values.field_values,
         }
     }
@@ -527,8 +529,6 @@ impl VectorField1D {
     /// ```
     ///
     pub fn curl(self: &Self) -> Self {
-        let grid = self.grid.clone();
-
         // Decompose the vector field into three scalar fields.
         let (_, y_values, z_values) = self.vector_field_to_scalar_fields();
 
@@ -539,19 +539,20 @@ impl VectorField1D {
 
         // Combine the partial derivatives into a new vector field.
         let curl_vector_field = VectorField1D::scalar_fields_to_vector_field((
-            ScalarField1D::new_constant_scalar_field(grid.clone(), 0.0),
-            partial_x_z_values.scale(-1.0),
-            partial_x_y_values,
+            &ScalarField1D::new_constant_scalar_field(&self.grid, 0.0),
+            &partial_x_z_values.scale(-1.0),
+            &partial_x_y_values,
         ))
         .unwrap();
 
         VectorField1D {
-            grid,
+            grid: self.grid.clone(),
             field_values: curl_vector_field.field_values,
         }
     }
 }
 
+// Todo: add tests for vector calculus operations.
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -562,8 +563,7 @@ mod tests {
         let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
         let field_values = vec![[1.0, 0.0, 0.0]; grid.grid_points.len()];
         let vector_field =
-            VectorField1D::new_vector_field(&grid, field_values.clone())
-                .unwrap();
+            VectorField1D::new_vector_field(&grid, &field_values).unwrap();
         assert_eq!(vector_field.grid, grid);
         assert_eq!(vector_field.field_values, field_values);
     }
@@ -587,9 +587,9 @@ mod tests {
         let field_values_1 = vec![[1.0, 0.0, 0.0]; grid.grid_points.len()];
         let field_values_2 = vec![[0.0, 1.0, 0.0]; grid.grid_points.len()];
         let vector_field_1 =
-            VectorField1D::new_vector_field(&grid, field_values_1).unwrap();
+            VectorField1D::new_vector_field(&grid, &field_values_1).unwrap();
         let vector_field_2 =
-            VectorField1D::new_vector_field(&grid, field_values_2).unwrap();
+            VectorField1D::new_vector_field(&grid, &field_values_2).unwrap();
         let vector_field_sum = vector_field_1.add(&vector_field_2).unwrap();
         let expected_field_values =
             vec![[1.0, 1.0, 0.0]; grid.grid_points.len()];
@@ -602,9 +602,9 @@ mod tests {
         let field_values_1 = vec![[1.0, 1.0, 0.0]; grid.grid_points.len()];
         let field_values_2 = vec![[0.0, 1.0, 0.0]; grid.grid_points.len()];
         let vector_field_1 =
-            VectorField1D::new_vector_field(&grid, field_values_1).unwrap();
+            VectorField1D::new_vector_field(&grid, &field_values_1).unwrap();
         let vector_field_2 =
-            VectorField1D::new_vector_field(&grid, field_values_2).unwrap();
+            VectorField1D::new_vector_field(&grid, &field_values_2).unwrap();
         let vector_field_difference =
             vector_field_1.subtract(&vector_field_2).unwrap();
         let expected_field_values =
@@ -617,8 +617,7 @@ mod tests {
         let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
         let field_values = vec![[1.0, 2.0, 3.0]; grid.grid_points.len()];
         let vector_field =
-            VectorField1D::new_vector_field(&grid, field_values.clone())
-                .unwrap();
+            VectorField1D::new_vector_field(&grid, &field_values).unwrap();
         let scaled_vector_field = vector_field.scale(2.0);
         let expected_field_values =
             vec![[2.0, 4.0, 6.0]; grid.grid_points.len()];
@@ -631,9 +630,9 @@ mod tests {
         let field_values_1 = vec![[1.0, 2.0, 3.0]; grid.grid_points.len()];
         let field_values_2 = vec![[4.0, 5.0, 6.0]; grid.grid_points.len()];
         let vector_field_1 =
-            VectorField1D::new_vector_field(&grid, field_values_1).unwrap();
+            VectorField1D::new_vector_field(&grid, &field_values_1).unwrap();
         let vector_field_2 =
-            VectorField1D::new_vector_field(&grid, field_values_2).unwrap();
+            VectorField1D::new_vector_field(&grid, &field_values_2).unwrap();
         let dot_product_field =
             vector_field_1.dot_product(&vector_field_2).unwrap();
         let expected_values = vec![32.0; grid.grid_points.len()];
@@ -646,9 +645,9 @@ mod tests {
         let field_values_1 = vec![[1.0, 2.0, 3.0]; grid.grid_points.len()];
         let field_values_2 = vec![[4.0, 5.0, 6.0]; grid.grid_points.len()];
         let vector_field_1 =
-            VectorField1D::new_vector_field(&grid, field_values_1).unwrap();
+            VectorField1D::new_vector_field(&grid, &field_values_1).unwrap();
         let vector_field_2 =
-            VectorField1D::new_vector_field(&grid, field_values_2).unwrap();
+            VectorField1D::new_vector_field(&grid, &field_values_2).unwrap();
         let cross_product_field =
             vector_field_1.cross_product(&vector_field_2).unwrap();
         let expected_values = vec![[-3.0, 6.0, -3.0]; grid.grid_points.len()];
@@ -659,7 +658,8 @@ mod tests {
     fn test_vector_field_1d_debug() {
         let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
         let field_values = vec![[1.0, 0.0, 0.0]; grid.grid_points.len()];
-        let vector_field = VectorField1D::new_vector_field(&grid, field_values);
+        let vector_field =
+            VectorField1D::new_vector_field(&grid, &field_values);
         let debug_str = format!("{:?}", vector_field);
         assert!(debug_str.contains("VectorField1D"));
         assert!(debug_str.contains("grid"));
@@ -671,7 +671,7 @@ mod tests {
         let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
         let field_values = vec![[1.0, 0.0, 0.0]; grid.grid_points.len()];
         let vector_field =
-            VectorField1D::new_vector_field(&grid, field_values.clone());
+            VectorField1D::new_vector_field(&grid, &field_values).unwrap();
         let cloned_vector_field = vector_field.clone();
         assert_eq!(vector_field, cloned_vector_field);
     }
@@ -682,9 +682,9 @@ mod tests {
         let field_values_1 = vec![[1.0, 0.0, 0.0]; grid.grid_points.len()];
         let field_values_2 = vec![[0.0, 1.0, 0.0]; grid.grid_points.len()];
         let vector_field_1 =
-            VectorField1D::new_vector_field(&grid, field_values_1);
+            VectorField1D::new_vector_field(&grid, &field_values_1);
         let vector_field_2 =
-            VectorField1D::new_vector_field(&grid, field_values_2);
+            VectorField1D::new_vector_field(&grid, &field_values_2);
 
         // Check vector field is equal to itself.
         assert_eq!(vector_field_1, vector_field_1);
@@ -703,9 +703,9 @@ mod tests {
         let field_values_1 = vec![[1.0, 0.0, 0.0]; grid1.grid_points.len()];
         let field_values_2 = vec![[0.0, 1.0, 0.0]; grid2.grid_points.len()];
         let vector_field_1 =
-            VectorField1D::new_vector_field(&grid1, field_values_1).unwrap();
+            VectorField1D::new_vector_field(&grid1, &field_values_1).unwrap();
         let vector_field_2 =
-            VectorField1D::new_vector_field(&grid2, field_values_2).unwrap();
+            VectorField1D::new_vector_field(&grid2, &field_values_2).unwrap();
         let result = vector_field_1.add(&vector_field_2);
         assert!(result.is_err());
         assert_eq!(
@@ -721,9 +721,9 @@ mod tests {
         let field_values_1 = vec![[1.0, 1.0, 0.0]; grid1.grid_points.len()];
         let field_values_2 = vec![[0.0, 1.0, 0.0]; grid2.grid_points.len()];
         let vector_field_1 =
-            VectorField1D::new_vector_field(&grid1, field_values_1).unwrap();
+            VectorField1D::new_vector_field(&grid1, &field_values_1).unwrap();
         let vector_field_2 =
-            VectorField1D::new_vector_field(&grid2, field_values_2).unwrap();
+            VectorField1D::new_vector_field(&grid2, &field_values_2).unwrap();
         let result = vector_field_1.subtract(&vector_field_2);
         assert!(result.is_err());
         assert_eq!(
@@ -739,9 +739,9 @@ mod tests {
         let field_values_1 = vec![[1.0, 2.0, 3.0]; grid1.grid_points.len()];
         let field_values_2 = vec![[4.0, 5.0, 6.0]; grid2.grid_points.len()];
         let vector_field_1 =
-            VectorField1D::new_vector_field(&grid1, field_values_1).unwrap();
+            VectorField1D::new_vector_field(&grid1, &field_values_1).unwrap();
         let vector_field_2 =
-            VectorField1D::new_vector_field(&grid2, field_values_2).unwrap();
+            VectorField1D::new_vector_field(&grid2, &field_values_2).unwrap();
         let result = vector_field_1.dot_product(&vector_field_2);
         assert!(result.is_err());
         assert_eq!(
@@ -757,9 +757,9 @@ mod tests {
         let field_values_1 = vec![[1.0, 2.0, 3.0]; grid1.grid_points.len()];
         let field_values_2 = vec![[4.0, 5.0, 6.0]; grid2.grid_points.len()];
         let vector_field_1 =
-            VectorField1D::new_vector_field(&grid1, field_values_1).unwrap();
+            VectorField1D::new_vector_field(&grid1, &field_values_1).unwrap();
         let vector_field_2 =
-            VectorField1D::new_vector_field(&grid2, field_values_2).unwrap();
+            VectorField1D::new_vector_field(&grid2, &field_values_2).unwrap();
         let result = vector_field_1.cross_product(&vector_field_2);
         assert!(result.is_err());
         assert_eq!(
