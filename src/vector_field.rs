@@ -616,6 +616,42 @@ mod tests {
     }
 
     #[test]
+    fn test_vector_field_to_scalar_fields() {
+        let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
+        let vector_field =
+            VectorField1D::new_constant_vector_field(&grid, [1.0, 2.0, 3.0]);
+        let (x_values, y_values, z_values) =
+            vector_field.vector_field_to_scalar_fields();
+
+        let expected_x_scalar_field =
+            ScalarField1D::new_constant_scalar_field(&grid, 1.0);
+        let expected_y_scalar_field =
+            ScalarField1D::new_constant_scalar_field(&grid, 2.0);
+        let expected_z_scalar_field =
+            ScalarField1D::new_constant_scalar_field(&grid, 3.0);
+
+        assert_eq!(x_values, expected_x_scalar_field);
+        assert_eq!(y_values, expected_y_scalar_field);
+        assert_eq!(z_values, expected_z_scalar_field);
+    }
+
+    #[test]
+    fn test_scalar_fields_to_vector_field() {
+        let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
+        let x_values = ScalarField1D::new_constant_scalar_field(&grid, 1.0);
+        let y_values = ScalarField1D::new_constant_scalar_field(&grid, 2.0);
+        let z_values = ScalarField1D::new_constant_scalar_field(&grid, 3.0);
+        let vector_field = VectorField1D::scalar_fields_to_vector_field((
+            &x_values, &y_values, &z_values,
+        ))
+        .unwrap();
+
+        let expected_vector_field =
+            VectorField1D::new_constant_vector_field(&grid, [1.0, 2.0, 3.0]);
+        assert_eq!(vector_field, expected_vector_field);
+    }
+
+    #[test]
     fn test_add_vector_fields() {
         let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
         let field_values_1 = vec![[1.0, 0.0, 0.0]; grid.grid_points.len()];
@@ -790,6 +826,18 @@ mod tests {
 
         // Check vector field is not equal to a different vector field.
         assert_ne!(vector_field_1, vector_field_2);
+    }
+
+    #[test]
+    fn test_new_vector_field_error() {
+        let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
+        let field_values = vec![[1.0, 0.0, 0.0]; grid.grid_points.len() - 1];
+        let result = VectorField1D::new_vector_field(&grid, &field_values);
+        assert!(result.is_err());
+        assert_eq!(
+            result.err(),
+            Some("Number of grid points does not match number of field values")
+        );
     }
 
     #[test]

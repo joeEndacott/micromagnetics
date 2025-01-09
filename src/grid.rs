@@ -20,6 +20,7 @@ pub struct Grid {
     pub grid_points: Vec<f64>,
 }
 
+// Constructor functions.
 impl Grid {
     /// # New uniform grid
     ///
