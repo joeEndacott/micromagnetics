@@ -334,8 +334,8 @@ impl ScalarField1D {
     ///
     /// let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
     /// let field_values_1 = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-    /// scalar_field_1 = ScalarField1D::new_scalar_field(&grid, &field_values_1).unwrap();
-    /// let scalar_field_2 = scalar_field_1.add(&ScalarField1D::new_constant_scalar_field(grid, 1e-7)).unwrap();
+    /// let scalar_field_1 = ScalarField1D::new_scalar_field(&grid, &field_values_1).unwrap();
+    /// let scalar_field_2 = scalar_field_1.add(&ScalarField1D::new_constant_scalar_field(&grid, 1e-7)).unwrap();
     /// let is_equal = scalar_field_1.test_equality(&scalar_field_2, 1e-6);
     /// ```
     ///

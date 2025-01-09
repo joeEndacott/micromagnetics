@@ -299,6 +299,40 @@ impl VectorField1D {
             field_values,
         }
     }
+
+    /// # Test equality with tolerance
+    ///
+    /// ## Description
+    /// Tests if two vector fields are equal within a given tolerance.
+    ///
+    /// ## Example use case
+    /// ```
+    /// use crate::grid::Grid;
+    /// use crate::vector_field::VectorField1D;
+    ///
+    /// let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
+    /// let vector_field_1 = VectorField1D::new_constant_vector_field(&grid, [1.0, 0.0, 0.0]);
+    /// let scalar_field_2 = scalar_field_1.add(&VectorField1D::new_constant_vector_field(&grid, [1e-7, 1e-7, 1e-7])).unwrap();
+    /// let is_equal = vector_field_1.test_equality(&vector_field_2, 1e-6);
+    /// ```
+    ///
+    pub fn test_equality(
+        self: &Self,
+        other: &VectorField1D,
+        tolerance: f64,
+    ) -> bool {
+        if self.grid != other.grid {
+            return false;
+        }
+
+        self.field_values.iter().zip(other.field_values.iter()).all(
+            |(v1, v2)| {
+                (v1[0] - v2[0]).abs() < tolerance
+                    && (v1[1] - v2[1]).abs() < tolerance
+                    && (v1[2] - v2[2]).abs() < tolerance
+            },
+        )
+    }
 }
 
 // Vector operations.
@@ -625,6 +659,35 @@ mod tests {
     }
 
     #[test]
+    fn test_test_equality() {
+        let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
+        let vector_field_1 =
+            VectorField1D::new_constant_vector_field(&grid, [1.0, 2.0, -3.0]);
+
+        // Test equality of a scalar field with itself.
+        assert!(vector_field_1.test_equality(&vector_field_1, 1e-6));
+
+        // Test equality of a scalar field with a slightly different scalar
+        // field.
+        let mut vector_field_2 = vector_field_1
+            .add(&&&VectorField1D::new_constant_vector_field(
+                &grid,
+                [1e-7, 1e-7, 1e-7],
+            ))
+            .unwrap();
+        assert!(vector_field_1.test_equality(&vector_field_2, 1e-6));
+
+        // Test inequality of a scalar field with a different scalar field.
+        vector_field_2 = vector_field_1
+            .add(&&VectorField1D::new_constant_vector_field(
+                &grid,
+                [1e-3, 1e-3, 1e-3],
+            ))
+            .unwrap();
+        assert!(!vector_field_1.test_equality(&vector_field_2, 1e-6));
+    }
+
+    #[test]
     fn test_dot_product() {
         let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
         let field_values_1 = vec![[1.0, 2.0, 3.0]; grid.grid_points.len()];
@@ -652,6 +715,39 @@ mod tests {
             vector_field_1.cross_product(&vector_field_2).unwrap();
         let expected_values = vec![[-3.0, 6.0, -3.0]; grid.grid_points.len()];
         assert_eq!(cross_product_field.field_values, expected_values);
+    }
+
+    #[test]
+    fn test_partial_x() {
+        let grid = Grid::new_uniform_grid(0.0, 1.0, 100);
+
+        // Test the derivative of a constant vector field.
+        let v_x = ScalarField1D::new_constant_scalar_field(&grid, 1.0);
+        let v_y = ScalarField1D::new_constant_scalar_field(&grid, 3.0);
+        let v_z = ScalarField1D::new_constant_scalar_field(&grid, -6.0);
+        let vector_field =
+            VectorField1D::scalar_fields_to_vector_field((&v_x, &v_y, &v_z))
+                .unwrap();
+        let partial_x_vector_field = vector_field.partial_x();
+
+        let expected_result =
+            VectorField1D::new_constant_vector_field(&grid, [0.0, 0.0, 0.0]);
+
+        assert!(partial_x_vector_field.test_equality(&expected_result, 1e-6));
+
+        // Test the derivative of the vector field [x, -2x, 4x].
+        let vx = ScalarField1D::function_to_scalar_field(&grid, |x| x);
+        let vy = ScalarField1D::function_to_scalar_field(&grid, |x| -2.0 * x);
+        let vz = ScalarField1D::function_to_scalar_field(&grid, |x| 4.0 * x);
+        let vector_field =
+            VectorField1D::scalar_fields_to_vector_field((&vx, &vy, &vz))
+                .unwrap();
+        let partial_x_vector_field = vector_field.partial_x();
+
+        let expected_result =
+            VectorField1D::new_constant_vector_field(&grid, [1.0, -2.0, 4.0]);
+
+        assert!(partial_x_vector_field.test_equality(&expected_result, 1e-6));
     }
 
     #[test]
