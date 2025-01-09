@@ -12,6 +12,8 @@
 ///
 /// ## Todo
 /// Add functionality to create non-uniform grids.
+/// Change implementation so uniform grids are stored as metadata, rather than
+/// storing the grid points directly.
 ///
 #[derive(Debug, Clone, PartialEq)]
 pub struct Grid {
