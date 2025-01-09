@@ -456,6 +456,19 @@ mod tests {
     }
 
     #[test]
+    fn test_function_to_scalar_field() {
+        let grid = Grid::new_uniform_grid(0.0, 1.0, 6);
+        let scalar_field =
+            ScalarField1D::function_to_scalar_field(&grid, |x| x);
+
+        let expected_values = vec![0.0, 0.2, 0.4, 0.6, 0.8, 1.0];
+        let expected_scalar_field =
+            ScalarField1D::new_scalar_field(&grid, &expected_values).unwrap();
+
+        assert!(scalar_field.test_equality(&expected_scalar_field, 1e-6));
+    }
+
+    #[test]
     fn test_new_constant_scalar_field() {
         let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
         let field_value = 5.0;
