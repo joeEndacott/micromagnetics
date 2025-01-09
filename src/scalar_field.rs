@@ -1,4 +1,5 @@
 use crate::grid::Grid;
+use crate::quadratic_interpolation;
 
 /// # Scalar field 1D
 ///
@@ -378,7 +379,7 @@ impl ScalarField1D {
     /// ```
     ///  
     pub fn partial_x(&self) -> Self {
-        self.central_difference_derivative()
+        self.central_difference_derivative_first_order_boundaries()
     }
 
     /// # Central difference derivative
@@ -388,9 +389,13 @@ impl ScalarField1D {
     /// difference scheme, and returns this result as a new scalar field.
     ///
     /// The derivative at the starting grid point is calculated using the
-    /// forwards difference scheme, the derivative at each interior grid point
-    /// is calculated using the central difference scheme, and the derivative
-    /// at the final grid point is calculated using the backwards difference
+    /// forwards difference scheme accurate to first order.
+    ///
+    /// The derivative at each interior grid point is calculated using the
+    /// central difference scheme. and
+    ///
+    /// The derivative at the final grid point is calculated using the
+    /// backwards difference to first order.
     /// scheme.
     ///
     /// ## Example use case
@@ -401,17 +406,19 @@ impl ScalarField1D {
     /// let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
     /// let field_values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
     /// let scalar_field = ScalarField1D::new_scalar_field(&grid, &field_values).unwrap();
-    /// let scalar_field_derivative = scalar_field.central_difference_derivative();
+    /// let scalar_field_derivative = scalar_field.central_difference_derivative_first_order_boundaries();
     /// ```
     ///
-    pub fn central_difference_derivative(self: &Self) -> Self {
+    pub fn central_difference_derivative_first_order_boundaries(
+        self: &Self,
+    ) -> Self {
         let grid = &self.grid;
         let field_values = &self.field_values;
 
         let grid_points = &grid.grid_points;
         let num_points = grid_points.len();
 
-        let mut partial_x_values = Vec::new();
+        let mut partial_x_values = Vec::with_capacity(num_points);
 
         // Calculates the derivative at the starting grid point using the forwards difference scheme.
         partial_x_values.push(
@@ -438,6 +445,74 @@ impl ScalarField1D {
             field_values: partial_x_values,
         }
     }
+
+    // / # Central difference derivative
+    // /
+    // / ## Description
+    // / Calculates the derivative of the scalar field using the central
+    // / difference scheme, and returns this result as a new scalar field.
+    // /
+    // / The derivative at the starting grid point is calculated using the
+    // / forwards difference scheme accurate to second order.
+    // /
+    // / The derivative at each interior grid point is calculated using the
+    // / central difference scheme. and
+    // /
+    // / The derivative at the final grid point is calculated using the
+    // / backwards difference to second order.
+    // / scheme.
+    // /
+    // / ## Example use case
+    // / ```
+    // / use crate::grid::Grid;
+    // / use crate::scalar_field::ScalarField1D;
+    // /
+    // / let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
+    // / let field_values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+    // / let scalar_field = ScalarField1D::new_scalar_field(&grid, &field_values).unwrap();
+    // / let scalar_field_derivative = scalar_field.central_difference_derivative_second_order_boundaries();
+    // / ```
+    // /
+    // pub fn central_difference_derivative_quadratic_interpolation_boundaries(
+    //     self: &Self,
+    // ) -> Self {
+    //     let grid = &self.grid;
+    //     let field_values = &self.field_values;
+
+    //     let grid_points = &grid.grid_points;
+    //     let num_points = grid_points.len();
+
+    //     let mut partial_x_values = Vec::with_capacity(num_points);
+
+    //     // Calculates the derivative at the starting grid point using a
+    //     // quadratic interpolation.
+    //     let points = [grid_points[0], grid_points[1], grid_points[2]];
+
+    //     // Calculates the derivative at each interior grid point using the central difference scheme.
+    //     for i in 1..(num_points - 1) {
+    //         partial_x_values.push(
+    //             (field_values[i + 1] - field_values[i - 1])
+    //                 / (grid_points[i + 1] - grid_points[i - 1]),
+    //         );
+    //     }
+
+    //     // Calculates the derivative at the final grid point using the backwards difference scheme (2nd order).
+    //     let h_last = grid_points[num_points - 1] - grid_points[num_points - 2];
+    //     let h_second_last =
+    //         grid_points[num_points - 2] - grid_points[num_points - 3];
+    //     partial_x_values.push(
+    //         (field_values[num_points - 1] - field_values[num_points - 2])
+    //             / h_last
+    //             - h_second_last / (h_last * (h_last + h_second_last))
+    //                 * (field_values[num_points - 2]
+    //                     - field_values[num_points - 3]),
+    //     );
+
+    //     ScalarField1D {
+    //         grid: grid.clone(),
+    //         field_values: partial_x_values,
+    //     }
+    // }
 }
 
 #[cfg(test)]
@@ -589,16 +664,26 @@ mod tests {
             ScalarField1D::new_constant_scalar_field(&grid, 1.0);
 
         assert!(partial_x_scalar_field.test_equality(&expected_result, 1e-6));
+
+        // Test the derivative of the scalar field x^2.
+        let scalar_field =
+            ScalarField1D::function_to_scalar_field(&grid, |x| x.powi(2));
+        let partial_x_scalar_field = scalar_field.partial_x();
+
+        let expected_result =
+            ScalarField1D::function_to_scalar_field(&grid, |x| 2.0 * x);
+
+        assert!(partial_x_scalar_field.test_equality(&expected_result, 1e-6));
     }
 
     #[test]
-    fn test_central_difference_derivative() {
+    fn test_central_difference_derivative_first_order_boundaries() {
         let grid = Grid::new_uniform_grid(0.0, 1.0, 100);
 
         // Test the derivative of a constant scalar field.
         let scalar_field = ScalarField1D::new_constant_scalar_field(&grid, 1.0);
         let partial_x_scalar_field =
-            scalar_field.central_difference_derivative();
+            scalar_field.central_difference_derivative_first_order_boundaries();
 
         let expected_result =
             ScalarField1D::new_constant_scalar_field(&grid, 0.0);
@@ -609,13 +694,50 @@ mod tests {
         let scalar_field =
             ScalarField1D::function_to_scalar_field(&grid, |x| x);
         let partial_x_scalar_field =
-            scalar_field.central_difference_derivative();
+            scalar_field.central_difference_derivative_first_order_boundaries();
 
         let expected_result =
             ScalarField1D::new_constant_scalar_field(&grid, 1.0);
 
         assert!(partial_x_scalar_field.test_equality(&expected_result, 1e-6));
     }
+
+    // #[test]
+    // fn test_central_difference_derivative_second_order_boundaries() {
+    //     let grid = Grid::new_uniform_grid(0.0, 1.0, 100);
+
+    //     // Test the derivative of a constant scalar field.
+    //     let scalar_field = ScalarField1D::new_constant_scalar_field(&grid, 1.0);
+    //     let partial_x_scalar_field = scalar_field
+    //         .central_difference_derivative_second_order_boundaries();
+
+    //     let expected_result =
+    //         ScalarField1D::new_constant_scalar_field(&grid, 0.0);
+
+    //     assert!(partial_x_scalar_field.test_equality(&expected_result, 1e-6));
+
+    //     // Test the derivative of the scalar field x.
+    //     let scalar_field =
+    //         ScalarField1D::function_to_scalar_field(&grid, |x| x);
+    //     let partial_x_scalar_field = scalar_field
+    //         .central_difference_derivative_second_order_boundaries();
+
+    //     let expected_result =
+    //         ScalarField1D::new_constant_scalar_field(&grid, 1.0);
+
+    //     assert!(partial_x_scalar_field.test_equality(&expected_result, 1e-6));
+
+    //     // // Test the derivative of the scalar field x^2.
+    //     // let scalar_field =
+    //     //     ScalarField1D::function_to_scalar_field(&grid, |x| x.powi(2));
+    //     // let partial_x_scalar_field = scalar_field
+    //     //     .central_difference_derivative_second_order_boundaries();
+
+    //     // let expected_result =
+    //     //     ScalarField1D::function_to_scalar_field(&grid, |x| 2.0 * x);
+
+    //     // assert!(partial_x_scalar_field.test_equality(&expected_result, 1e-6));
+    // }
 
     #[test]
     fn test_new_scalar_field_error() {

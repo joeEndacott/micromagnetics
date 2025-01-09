@@ -809,6 +809,41 @@ mod tests {
     }
 
     #[test]
+    fn test_laplacian() {
+        let grid = Grid::new_uniform_grid(0.0, 1.0, 100);
+
+        // Test the Laplacian of a constant vector field.
+        let v_x = ScalarField1D::new_constant_scalar_field(&grid, 1.0);
+        let v_y = ScalarField1D::new_constant_scalar_field(&grid, 3.0);
+        let v_z = ScalarField1D::new_constant_scalar_field(&grid, -6.0);
+        let vector_field =
+            VectorField1D::scalar_fields_to_vector_field((&v_x, &v_y, &v_z))
+                .unwrap();
+        let laplacian_vector_field = vector_field.laplacian();
+
+        let expected_result =
+            VectorField1D::new_constant_vector_field(&grid, [0.0, 0.0, 0.0]);
+
+        assert!(laplacian_vector_field.test_equality(&expected_result, 1e-6));
+
+        // Test the Laplacian of the vector field [x^2, -2x^2, 4x^2].
+        let vx = ScalarField1D::function_to_scalar_field(&grid, |x| x * x);
+        let vy =
+            ScalarField1D::function_to_scalar_field(&grid, |x| -2.0 * x * x);
+        let vz =
+            ScalarField1D::function_to_scalar_field(&grid, |x| 4.0 * x * x);
+        let vector_field =
+            VectorField1D::scalar_fields_to_vector_field((&vx, &vy, &vz))
+                .unwrap();
+        let laplacian_vector_field = vector_field.laplacian();
+
+        let expected_result =
+            VectorField1D::new_constant_vector_field(&grid, [2.0, -4.0, 8.0]);
+
+        assert!(laplacian_vector_field.test_equality(&expected_result, 1e-2));
+    }
+
+    #[test]
     fn test_vector_field_1d_partial_eq() {
         let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
         let field_values_1 = vec![[1.0, 0.0, 0.0]; grid.grid_points.len()];
