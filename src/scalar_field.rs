@@ -1,3 +1,4 @@
+use crate::boundary_conditions::{self, BoundaryConditions1D};
 use crate::grid::Grid;
 use crate::quadratic_interpolation;
 
@@ -10,20 +11,14 @@ use crate::quadratic_interpolation;
 ///
 /// The x axis is the axis along which the grid points lie.
 ///
-/// ## Example use case
-/// ```
-/// use crate::grid::Grid;
-/// use crate::scalar_field::ScalarField1D;
-///
-/// let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
-/// let field_values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-/// let scalar_field = ScalarField1D::new_scalar_field(&grid, field_values).unwrap();
-/// ```
+/// The scalar field can be subject to boundary conditions, which are specified
+/// as a `BoundaryConditions1D` instance.
 ///
 #[derive(Debug, Clone, PartialEq)]
 pub struct ScalarField1D {
     pub grid: Grid,
     pub field_values: Vec<f64>,
+    pub boundary_conditions: BoundaryConditions1D,
 }
 
 // Constructor functions.
@@ -34,60 +29,51 @@ impl ScalarField1D {
     /// Creates a new 1D scalar field, with a specified scalar at each grid
     /// point.
     ///
-    /// ## Example use case
-    /// ```
-    /// use crate::grid::Grid;
-    /// use crate::scalar_field::ScalarField1D;
-    ///
-    /// let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
-    /// let field_values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-    /// let scalar_field = ScalarField1D::new_scalar_field(&grid, &field_values).unwrap();
-    /// ```
-    ///
     pub fn new_scalar_field(
         grid: &Grid,
         field_values: &Vec<f64>,
-    ) -> Result<ScalarField1D, &'static str> {
+    ) -> Result<Self, &'static str> {
         if field_values.len() != grid.grid_points.len() {
             return Err(
                 "Number of field values does not match number of grid points",
             );
         }
-        Ok(ScalarField1D {
+
+        let mut scalar_field = ScalarField1D {
             grid: grid.clone(),
             field_values: field_values.clone(),
-        })
+            boundary_conditions: None,
+        };
+
+        BoundaryConditions1D::check_scalar_bcs(&scalar_field, 1e-6)?;
+        BoundaryConditions1D::apply_scalar_bcs(&mut scalar_field);
+        Ok(scalar_field)
     }
 
     /// # Function to scalar field
     ///
     /// ## Description
-    /// Generates a `ScalarField1D`, given a real-valued function of a real
-    /// variable `func` and a `Grid` `grid`. `func` is
-    /// sampled at each grid point in `grid` and the values are stored
-    /// in the field `field_values`.
+    /// Generates a `ScalarField1D`, given a scalar valued function and a
+    /// `Grid`. The function is sampled at each grid point and the function
+    /// values are stored in the field `field_values`.
     ///
-    /// ## Example use case
-    /// ```
-    /// use crate::grid::Grid;
-    /// use crate::scalar_field::ScalarField1D;
-    ///
-    /// let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
-    /// let scalar_field = ScalarField1D::function_to_scalar_field(&grid, |x| x.powi(2));
-    /// ```    
-    ///
-    pub fn function_to_scalar_field<F>(grid: &Grid, func: F) -> Self
+    pub fn function_to_scalar_field<F>(
+        grid: &Grid,
+        func: F,
+        boundary_conditions: &BoundaryConditions1D,
+    ) -> Result<Self, &'static str>
     where
         F: Fn(f64) -> f64,
     {
-        // Creates a vector containing the value of func at each grid point.
-        let function_values: Vec<f64> =
-            grid.grid_points.iter().map(|&x| func(x)).collect();
-
-        ScalarField1D {
+        let mut scalar_field = ScalarField1D {
             grid: grid.clone(),
-            field_values: function_values,
-        }
+            field_values: grid.grid_points.iter().map(|&x| func(x)).collect(),
+            boundary_conditions: boundary_conditions.clone(),
+        };
+
+        BoundaryConditions1D::check_scalar_bcs(&scalar_field, 1e-6)?;
+        BoundaryConditions1D::apply_scalar_bcs(&mut scalar_field);
+        Ok(scalar_field)
     }
 
     /// # New constant scalar field
@@ -95,25 +81,20 @@ impl ScalarField1D {
     /// ## Description
     /// Creates a new 1D scalar field with a constant value at every grid point.
     ///
-    /// ## Example use case
-    /// ```
-    /// use crate::grid::Grid;
-    /// use crate::scalar_field::ScalarField1D;
-    ///
-    /// let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
-    /// let field_value = 5.0;
-    /// let scalar_field = ScalarField1D::new_constant_scalar_field(&grid, field_value);
-    /// ```
-    ///
     pub fn new_constant_scalar_field(
         grid: &Grid,
         field_value: f64,
-    ) -> ScalarField1D {
-        let field_values = vec![field_value; grid.grid_points.len()];
-        ScalarField1D {
+        boundary_conditions: &BoundaryConditions1D,
+    ) -> Result<Self, &'static str> {
+        let mut scalar_field = ScalarField1D {
             grid: grid.clone(),
-            field_values,
-        }
+            field_values: vec![field_value; grid.grid_points.len()],
+            boundary_conditions: boundary_conditions.clone(),
+        };
+
+        BoundaryConditions1D::check_scalar_bcs(&scalar_field, 1e-6)?;
+        BoundaryConditions1D::apply_scalar_bcs(&mut scalar_field);
+        Ok(scalar_field)
     }
 }
 
@@ -125,25 +106,12 @@ impl ScalarField1D {
     /// Adds `scalar_field` to the current scalar field, and returns this new
     /// scalar field.
     ///
-    /// ## Example use case
-    /// ```
-    /// use crate::grid::Grid;
-    /// use crate::scalar_field::ScalarField1D;
-    ///
-    /// let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
-    /// let field_values_1 = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-    /// let field_values_2 = vec![4.0, 3.0, 2.0, 1.0, 0.0];
-    /// let scalar_field_1 = ScalarField1D::new_scalar_field(&grid, &field_values_1).unwrap();
-    /// let scalar_field_2 = ScalarField1D::new_scalar_field(&grid, &field_values_2).unwrap();
-    /// let scalar_field_sum = scalar_field1.add(&scalar_field2).unwrap();
-    /// ```
-    ///
-    /// ## Todo
-    /// Improve error handling.
+    /// The boundary conditions of the new scalar field must be specified.
     ///
     pub fn add(
         &self,
         scalar_field: &ScalarField1D,
+        boundary_conditions: &BoundaryConditions1D,
     ) -> Result<Self, &'static str> {
         if self.grid != scalar_field.grid {
             return Err("Grids do not match");
@@ -156,10 +124,15 @@ impl ScalarField1D {
             .map(|(v1, v2)| v1 + v2)
             .collect();
 
-        Ok(ScalarField1D {
+        let mut scalar_field = ScalarField1D {
             grid: self.grid.clone(),
             field_values,
-        })
+            boundary_conditions: boundary_conditions.clone(),
+        };
+
+        BoundaryConditions1D::check_scalar_bcs(&scalar_field, 1e-6)?;
+        BoundaryConditions1D::apply_scalar_bcs(&mut scalar_field);
+        Ok(scalar_field)
     }
 
     /// # Subtract scalar fields
@@ -168,25 +141,12 @@ impl ScalarField1D {
     /// Subtracts `scalar_field` from the current scalar field, and returns this
     /// new scalar field.
     ///
-    /// ## Example use case
-    /// ```
-    /// use crate::grid::Grid;
-    /// use crate::scalar_field::ScalarField1D;
-    ///
-    /// let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
-    /// let field_values_1 = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-    /// let field_values_2 = vec![4.0, 3.0, 2.0, 1.0, 0.0];
-    /// let scalar_field_1 = ScalarField1D::new_scalar_field(&grid, &field_values_1).unwrap();
-    /// let scalar_field_2 = ScalarField1D::new_scalar_field(&grid, &field_values_2).unwrap();
-    /// let scalar_field_difference = scalar_field_1.subtract(&scalar_field_2).unwrap();
-    /// ```
-    ///
-    /// ## Todo
-    /// Improve error handling.
+    /// The boundary conditions of the new scalar field must be specified.
     ///
     pub fn subtract(
         &self,
         scalar_field: &ScalarField1D,
+        boundary_conditions: &BoundaryConditions1D,
     ) -> Result<Self, &'static str> {
         if self.grid != scalar_field.grid {
             return Err("Grids do not match");
@@ -199,10 +159,15 @@ impl ScalarField1D {
             .map(|(v1, v2)| v1 - v2)
             .collect();
 
-        Ok(ScalarField1D {
+        let mut scalar_field = ScalarField1D {
             grid: self.grid.clone(),
             field_values,
-        })
+            boundary_conditions: boundary_conditions.clone(),
+        };
+
+        BoundaryConditions1D::check_scalar_bcs(&scalar_field, 1e-6)?;
+        BoundaryConditions1D::apply_scalar_bcs(&mut scalar_field);
+        Ok(scalar_field)
     }
 
     /// # Multiply scalar fields
@@ -211,25 +176,12 @@ impl ScalarField1D {
     /// Multiplies the current scalar field by `scalar_field`, and returns this
     /// new scalar field.
     ///
-    /// ## Example use case
-    /// ```
-    /// use crate::grid::Grid;
-    /// use crate::scalar_field::ScalarField1D;
-    ///
-    /// let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
-    /// let field_values_1 = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-    /// let field_values_2 = vec![4.0, 3.0, 2.0, 1.0, 0.0];
-    /// let scalar_field_1 = ScalarField1D::new_scalar_field(&grid, &field_values_1).unwrap();
-    /// let scalar_field_2 = ScalarField1D::new_scalar_field(&grid, &field_values_2).unwrap();
-    /// let scalar_field_product = scalar_field_1.multiply(&scalar_field_2).unwrap();
-    /// ```
-    ///
-    /// ## Todo
-    /// Improve error handling.
+    /// The boundary conditions of the new scalar field must be specified.
     ///
     pub fn multiply(
         &self,
         scalar_field: &ScalarField1D,
+        boundary_conditions: &BoundaryConditions1D,
     ) -> Result<Self, &'static str> {
         if self.grid != scalar_field.grid {
             return Err("Grids do not match");
@@ -242,10 +194,15 @@ impl ScalarField1D {
             .map(|(v1, v2)| v1 * v2)
             .collect();
 
-        Ok(ScalarField1D {
+        let mut scalar_field = ScalarField1D {
             grid: self.grid.clone(),
             field_values,
-        })
+            boundary_conditions: boundary_conditions.clone(),
+        };
+
+        BoundaryConditions1D::check_scalar_bcs(&scalar_field, 1e-6)?;
+        BoundaryConditions1D::apply_scalar_bcs(&mut scalar_field);
+        Ok(scalar_field)
     }
 
     /// # Divide scalar fields
@@ -254,25 +211,12 @@ impl ScalarField1D {
     /// Divides the current scalar field by `scalar_field`, and returns this new
     /// scalar field.
     ///
-    /// ## Example use case
-    /// ```
-    /// use crate::grid::Grid;
-    /// use crate::scalar_field::ScalarField1D;
-    ///
-    /// let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
-    /// let field_values_1 = vec![4.0, 9.0, 16.0, 25.0, 36.0];
-    /// let field_values_2 = vec![2.0, 3.0, 4.0, 5.0, 6.0];
-    /// let scalar_field_1 = ScalarField1D::new_scalar_field(&grid, &field_values_1).unwrap();
-    /// let scalar_field_2 = ScalarField1D::new_scalar_field(&grid, &field_values_2).unwrap();
-    /// let scalar_field_ratio = scalar_field_1.divide(&scalar_field_2).unwrap();
-    /// ```
-    ///
-    /// ## Todo
-    /// Improve error handling.
+    /// The boundary conditions of the new scalar field must be specified.
     ///
     pub fn divide(
         &self,
         scalar_field: &ScalarField1D,
+        boundary_conditions: &BoundaryConditions1D,
     ) -> Result<Self, &'static str> {
         if self.grid != scalar_field.grid {
             return Err("Grids do not match");
@@ -290,10 +234,15 @@ impl ScalarField1D {
             })
             .collect::<Result<Vec<f64>, &'static str>>()?;
 
-        Ok(ScalarField1D {
+        let mut scalar_field = ScalarField1D {
             grid: self.grid.clone(),
             field_values,
-        })
+            boundary_conditions: boundary_conditions.clone(),
+        };
+
+        BoundaryConditions1D::check_scalar_bcs(&scalar_field, 1e-6)?;
+        BoundaryConditions1D::apply_scalar_bcs(&mut scalar_field);
+        Ok(scalar_field)
     }
 
     /// # Scale scalar field.
@@ -302,57 +251,26 @@ impl ScalarField1D {
     /// Multiplies the current scalar field by a scalar, and returns this new
     /// scalar field.
     ///
-    /// ## Example use case
-    /// ```
-    /// use crate::grid::Grid;
-    /// use crate::scalar_field::ScalarField1D;
+    /// The boundary conditions of the new scalar field must be specified.
     ///
-    /// let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
-    /// let field_values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-    /// let scalar_field = ScalarField1D::new_scalar_field(&grid, &field_values).unwrap();
-    /// let scaled_scalar_field = scalar_field.scale(2.0);
-    /// ```
-    ///
-    pub fn scale(&self, scalar: f64) -> Self {
-        let field_values: Vec<f64> =
-            self.field_values.iter().map(|v| v * scalar).collect();
-        ScalarField1D {
-            grid: self.grid.clone(),
-            field_values,
-        }
-    }
-
-    /// # Test equality
-    ///
-    /// ## Description
-    /// Tests if the current scalar field is equal to another scalar field
-    /// within a specified maximum error.
-    ///
-    /// ## Example use case
-    /// ```
-    /// use crate::grid::Grid;
-    /// use crate::scalar_field::ScalarField1D;
-    ///
-    /// let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
-    /// let field_values_1 = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-    /// let scalar_field_1 = ScalarField1D::new_scalar_field(&grid, &field_values_1).unwrap();
-    /// let scalar_field_2 = scalar_field_1.add(&ScalarField1D::new_constant_scalar_field(&grid, 1e-7)).unwrap();
-    /// let is_equal = scalar_field_1.test_equality(&scalar_field_2, 1e-6);
-    /// ```
-    ///
-    pub fn test_equality(
+    pub fn scale(
         &self,
-        scalar_field: &ScalarField1D,
-        max_err: f64,
-    ) -> bool {
-        if self.grid != scalar_field.grid {
-            return false;
-        }
+        scalar: f64,
+        boundary_conditions: &BoundaryConditions1D,
+    ) -> Result<Self, &'static str> {
+        let mut scalar_field = ScalarField1D {
+            grid: self.grid.clone(),
+            field_values: self
+                .field_values
+                .iter()
+                .map(|v| v * scalar)
+                .collect(),
+            boundary_conditions: boundary_conditions.clone(),
+        };
 
-        self.field_values
-            .iter()
-            .zip(&scalar_field.field_values)
-            .all(|(v1, v2)| (v1 - v2).abs() < max_err)
+        BoundaryConditions1D::check_scalar_bcs(&scalar_field, 1e-6)?;
+        BoundaryConditions1D::apply_scalar_bcs(&mut scalar_field);
+        Ok(scalar_field)
     }
 }
 
@@ -367,86 +285,33 @@ impl ScalarField1D {
     /// This derivative is calculated using the best differentiation scheme
     /// currently available.
     ///
-    /// ## Example use case
-    /// ```
-    /// use crate::grid::Grid;
-    /// use crate::scalar_field::ScalarField1D;
-    ///
-    /// let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
-    /// let field_values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-    /// let scalar_field = ScalarField1D::new_scalar_field(&grid, &field_values).unwrap();
-    /// let scalar_field_derivative = scalar_field.partial_x();
-    /// ```
+    /// Different methods to handle the edge points are used for different
+    /// boundary conditions.
     ///  
-    pub fn partial_x(&self) -> Self {
-        self.central_difference_derivative_quadratic_at_boundaries()
-    }
-
-    /// # Central difference derivative
-    ///
-    /// ## Description
-    /// Calculates the derivative of the scalar field using the central
-    /// difference scheme, and returns this result as a new scalar field.
-    ///
-    /// The derivative at the starting grid point is calculated using the
-    /// forwards difference scheme accurate to first order.
-    ///
-    /// The derivative at each interior grid point is calculated using the
-    /// central difference scheme. and
-    ///
-    /// The derivative at the final grid point is calculated using the
-    /// backwards difference to first order.
-    /// scheme.
-    ///
-    /// ## Example use case
-    /// ```
-    /// use crate::grid::Grid;
-    /// use crate::scalar_field::ScalarField1D;
-    ///
-    /// let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
-    /// let field_values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-    /// let scalar_field = ScalarField1D::new_scalar_field(&grid, &field_values).unwrap();
-    /// let scalar_field_derivative = scalar_field.central_difference_derivative_first_order_at_boundaries();
-    /// ```
-    ///
-    pub fn central_difference_derivative_first_order_at_boundaries(
-        self: &Self,
-    ) -> Self {
-        let grid = &self.grid;
-        let field_values = &self.field_values;
-
-        let grid_points = &grid.grid_points;
-        let num_points = grid_points.len();
-
-        let mut partial_x_values = Vec::with_capacity(num_points);
-
-        // Calculates the derivative at the starting grid point using the forwards difference scheme.
-        partial_x_values.push(
-            (field_values[1] - field_values[0])
-                / (grid_points[1] - grid_points[0]),
-        );
-
-        // Calculates the derivative at each interior grid point using the central difference scheme.
-        for i in 1..(num_points - 1) {
-            partial_x_values.push(
-                (field_values[i + 1] - field_values[i - 1])
-                    / (grid_points[i + 1] - grid_points[i - 1]),
-            );
-        }
-
-        // Calculates the derivative at the final grid point using the backwards difference scheme.
-        partial_x_values.push(
-            (field_values[num_points - 1] - field_values[num_points - 2])
-                / (grid_points[num_points - 1] - grid_points[num_points - 2]),
-        );
-
-        ScalarField1D {
-            grid: grid.clone(),
-            field_values: partial_x_values,
+    pub fn partial_x(&self) -> Result<Self, &'static str> {
+        match self.boundary_conditions {
+            BoundaryConditions1D::DirichletScalar(_, _)
+            | BoundaryConditions1D::None => {
+                Ok(self.central_difference_derivative_dirichlet_bcs())
+            }
+            BoundaryConditions1D::Periodic => {
+                Ok(self.central_difference_derivative_periodic_bcs())
+            }
+            BoundaryConditions1D::NeumannScalar(
+                left_boundary,
+                right_boundary,
+            ) => Ok(self.central_difference_derivative_neumann_bcs(
+                left_boundary,
+                right_boundary,
+            )),
+            BoundaryConditions1D::DirichletVector(_, _)
+            | BoundaryConditions1D::NeumannVector(_, _) => {
+                return Err("Vector boundary conditions not compatible with scalar derivative")
+            }
         }
     }
 
-    /// # Central difference derivative
+    /// # Central difference derivative dirichlet BCs
     ///
     /// ## Description
     /// Calculates the partial derivative of the scalar field with respect to x
@@ -454,28 +319,14 @@ impl ScalarField1D {
     /// scalar field.
     ///
     /// The derivative at the starting grid point is calculated using a     
-    /// quadratic interpolation.
+    /// quadratic interpolation. The derivative at each interior grid point is
+    /// calculated using the central difference scheme. The derivative at the
+    /// final grid point is calculated using a quadratic interpolation.
     ///
-    /// The derivative at each interior grid point is calculated using the
-    /// central difference scheme.
+    /// This function can calculate the derivative of a scalar field with
+    /// None or Dirichlet boundary conditions.
     ///
-    /// The derivative at the final grid point is calculated using a quadratic
-    /// interpolation.
-    ///
-    /// ## Example use case
-    /// ```
-    /// use crate::grid::Grid;
-    /// use crate::scalar_field::ScalarField1D;
-    ///
-    /// let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
-    /// let field_values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-    /// let scalar_field = ScalarField1D::new_scalar_field(&grid, &field_values).unwrap();
-    /// let scalar_field_derivative = scalar_field.central_difference_derivative_quadratic_at_boundaries();
-    /// ```
-    ///
-    pub fn central_difference_derivative_quadratic_at_boundaries(
-        self: &Self,
-    ) -> Self {
+    fn central_difference_derivative_dirichlet_bcs(self: &Self) -> Self {
         let grid = &self.grid;
         let field_values = &self.field_values;
 
@@ -534,7 +385,44 @@ impl ScalarField1D {
         ScalarField1D {
             grid: grid.clone(),
             field_values: partial_x_values,
+            boundary_conditions: self.boundary_conditions.clone(),
         }
+    }
+
+    /// # Central difference derivative periodic BCs
+    ///
+    /// ## Description
+    /// Calculates the partial derivative of the scalar field with respect to x
+    /// using the central difference scheme, and returns this result as a new
+    /// scalar field.
+    ///
+    /// The derivative at all grid points is calculated using the central
+    /// difference scheme.
+    ///
+    /// This function can calculate the derivative of a scalar field with
+    /// periodic boundary conditions.
+    ///
+    fn central_difference_derivative_periodic_bcs(self: &Self) -> Self {}
+
+    /// # Central difference derivative Neumann BCs
+    ///
+    /// ## Description
+    /// Calculates the partial derivative of the scalar field with respect to x
+    /// using the central difference scheme, and returns this result as a new
+    /// scalar field.
+    ///
+    /// The derivative at the interior grid points is calculated using the
+    /// central difference scheme. The derivative at the edge points is known
+    /// from the boundary conditions.
+    ///
+    /// This function can calculate the derivative of a scalar field with
+    /// Neumann boundary conditions.
+    ///
+    fn central_difference_derivative_neumann_bcs(
+        self: &Self,
+        left_boundary: f64,
+        right_boundary: f64,
+    ) -> Self {
     }
 }
 
@@ -542,13 +430,18 @@ impl ScalarField1D {
 mod tests {
     use super::*;
     use crate::grid::Grid;
+    use crate::utils;
 
     #[test]
     fn test_new_scalar_field() {
         let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
         let field_values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-        let scalar_field =
-            ScalarField1D::new_scalar_field(&grid, &field_values).unwrap();
+        let scalar_field = ScalarField1D::new_scalar_field(
+            &grid,
+            &field_values,
+            &BoundaryConditions1D::None,
+        )
+        .unwrap();
         assert_eq!(scalar_field.grid, grid);
         assert_eq!(scalar_field.field_values, field_values);
     }
@@ -556,22 +449,38 @@ mod tests {
     #[test]
     fn test_function_to_scalar_field() {
         let grid = Grid::new_uniform_grid(0.0, 1.0, 6);
-        let scalar_field =
-            ScalarField1D::function_to_scalar_field(&grid, |x| x);
+        let scalar_field = ScalarField1D::function_to_scalar_field(
+            &grid,
+            |x| x,
+            &BoundaryConditions1D::None,
+        )
+        .unwrap();
 
         let expected_values = vec![0.0, 0.2, 0.4, 0.6, 0.8, 1.0];
-        let expected_scalar_field =
-            ScalarField1D::new_scalar_field(&grid, &expected_values).unwrap();
+        let expected_scalar_field = ScalarField1D::new_scalar_field(
+            &grid,
+            &expected_values,
+            &BoundaryConditions1D::None,
+        )
+        .unwrap();
 
-        assert!(scalar_field.test_equality(&expected_scalar_field, 1e-6));
+        assert!(utils::scalar_field_equality(
+            &expected_scalar_field,
+            &scalar_field,
+            1e-6
+        ));
     }
 
     #[test]
     fn test_new_constant_scalar_field() {
         let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
         let field_value = 5.0;
-        let scalar_field =
-            ScalarField1D::new_constant_scalar_field(&grid, field_value);
+        let scalar_field = ScalarField1D::new_constant_scalar_field(
+            &grid,
+            field_value,
+            &BoundaryConditions1D::None,
+        )
+        .unwrap();
         assert_eq!(scalar_field.grid, grid);
         assert_eq!(
             scalar_field.field_values,
@@ -584,11 +493,21 @@ mod tests {
         let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
         let field_values1 = vec![1.0, 2.0, 3.0, 4.0, 5.0];
         let field_values2 = vec![4.0, 3.0, 2.0, 1.0, 0.0];
-        let scalar_field1 =
-            ScalarField1D::new_scalar_field(&grid, &field_values1).unwrap();
-        let scalar_field2 =
-            ScalarField1D::new_scalar_field(&grid, &field_values2).unwrap();
-        let result = scalar_field1.add(&scalar_field2).unwrap();
+        let scalar_field1 = ScalarField1D::new_scalar_field(
+            &grid,
+            &field_values1,
+            &BoundaryConditions1D::None,
+        )
+        .unwrap();
+        let scalar_field2 = ScalarField1D::new_scalar_field(
+            &grid,
+            &field_values2,
+            &BoundaryConditions1D::None,
+        )
+        .unwrap();
+        let result = scalar_field1
+            .add(&scalar_field2, &BoundaryConditions1D::None)
+            .unwrap();
         assert_eq!(result.field_values, vec![5.0, 5.0, 5.0, 5.0, 5.0]);
     }
 
@@ -597,11 +516,21 @@ mod tests {
         let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
         let field_values1 = vec![1.0, 2.0, 3.0, 4.0, 5.0];
         let field_values2 = vec![4.0, 3.0, 2.0, 1.0, 0.0];
-        let scalar_field1 =
-            ScalarField1D::new_scalar_field(&grid, &field_values1).unwrap();
-        let scalar_field2 =
-            ScalarField1D::new_scalar_field(&grid, &field_values2).unwrap();
-        let result = scalar_field1.subtract(&scalar_field2).unwrap();
+        let scalar_field1 = ScalarField1D::new_scalar_field(
+            &grid,
+            &field_values1,
+            &BoundaryConditions1D::None,
+        )
+        .unwrap();
+        let scalar_field2 = ScalarField1D::new_scalar_field(
+            &grid,
+            &field_values2,
+            &BoundaryConditions1D::None,
+        )
+        .unwrap();
+        let result = scalar_field1
+            .subtract(&scalar_field2, &BoundaryConditions1D::None)
+            .unwrap();
         assert_eq!(result.field_values, vec![-3.0, -1.0, 1.0, 3.0, 5.0]);
     }
 
@@ -610,11 +539,21 @@ mod tests {
         let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
         let field_values1 = vec![1.0, 2.0, 3.0, 4.0, 5.0];
         let field_values2 = vec![4.0, 3.0, 2.0, 1.0, 0.0];
-        let scalar_field1 =
-            ScalarField1D::new_scalar_field(&grid, &field_values1).unwrap();
-        let scalar_field2 =
-            ScalarField1D::new_scalar_field(&grid, &field_values2).unwrap();
-        let result = scalar_field1.multiply(&scalar_field2).unwrap();
+        let scalar_field1 = ScalarField1D::new_scalar_field(
+            &grid,
+            &field_values1,
+            &BoundaryConditions1D::None,
+        )
+        .unwrap();
+        let scalar_field2 = ScalarField1D::new_scalar_field(
+            &grid,
+            &field_values2,
+            &BoundaryConditions1D::None,
+        )
+        .unwrap();
+        let result = scalar_field1
+            .multiply(&scalar_field2, &BoundaryConditions1D::None)
+            .unwrap();
         assert_eq!(result.field_values, vec![4.0, 6.0, 6.0, 4.0, 0.0]);
     }
 
@@ -623,11 +562,21 @@ mod tests {
         let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
         let field_values1 = vec![4.0, 9.0, 16.0, 25.0, 36.0];
         let field_values2 = vec![2.0, 3.0, 4.0, 5.0, 6.0];
-        let scalar_field1 =
-            ScalarField1D::new_scalar_field(&grid, &field_values1).unwrap();
-        let scalar_field2 =
-            ScalarField1D::new_scalar_field(&grid, &field_values2).unwrap();
-        let result = scalar_field1.divide(&scalar_field2).unwrap();
+        let scalar_field1 = ScalarField1D::new_scalar_field(
+            &grid,
+            &field_values1,
+            &BoundaryConditions1D::None,
+        )
+        .unwrap();
+        let scalar_field2 = ScalarField1D::new_scalar_field(
+            &grid,
+            &field_values2,
+            &BoundaryConditions1D::None,
+        )
+        .unwrap();
+        let result = scalar_field1
+            .divide(&scalar_field2, &BoundaryConditions1D::None)
+            .unwrap();
         assert_eq!(result.field_values, vec![2.0, 3.0, 4.0, 5.0, 6.0]);
     }
 
@@ -635,138 +584,136 @@ mod tests {
     fn test_scale() {
         let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
         let field_values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-        let scalar_field =
-            ScalarField1D::new_scalar_field(&grid, &field_values).unwrap();
-        let result = scalar_field.scale(2.0);
+        let scalar_field = ScalarField1D::new_scalar_field(
+            &grid,
+            &field_values,
+            &BoundaryConditions1D::None,
+        )
+        .unwrap();
+        let result = scalar_field
+            .scale(2.0, &BoundaryConditions1D::None)
+            .unwrap();
         assert_eq!(result.field_values, vec![2.0, 4.0, 6.0, 8.0, 10.0]);
-    }
-
-    #[test]
-    fn test_test_equality() {
-        let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
-        let field_values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-        let scalar_field_1 =
-            ScalarField1D::new_scalar_field(&grid, &field_values).unwrap();
-
-        // Test equality of a scalar field with itself.
-        assert!(scalar_field_1.test_equality(&scalar_field_1, 1e-6));
-
-        // Test equality of a scalar field with a slightly different scalar
-        // field.
-        let mut scalar_field_2 = scalar_field_1
-            .add(&ScalarField1D::new_constant_scalar_field(&grid, 1e-7))
-            .unwrap();
-        assert!(scalar_field_1.test_equality(&scalar_field_2, 1e-6));
-
-        // Test inequality of a scalar field with a different scalar field.
-        scalar_field_2 = scalar_field_1
-            .add(&ScalarField1D::new_constant_scalar_field(&grid, 1e-3))
-            .unwrap();
-        assert!(!scalar_field_1.test_equality(&scalar_field_2, 1e-6));
     }
 
     #[test]
     fn test_partial_x() {
         let grid = Grid::new_uniform_grid(0.0, 1.0, 100);
 
-        // Test the derivative of a constant scalar field.
-        let scalar_field = ScalarField1D::new_constant_scalar_field(&grid, 1.0);
-        let partial_x_scalar_field = scalar_field.partial_x();
+        // Test the derivative of a constant scalar field with None boundary
+        // conditions.
+        let scalar_field = ScalarField1D::new_constant_scalar_field(
+            &grid,
+            1.0,
+            &BoundaryConditions1D::None,
+        )
+        .unwrap();
+        let partial_x_scalar_field = scalar_field.partial_x().unwrap();
 
-        let expected_result =
-            ScalarField1D::new_constant_scalar_field(&grid, 0.0);
+        let expected_result = ScalarField1D::new_constant_scalar_field(
+            &grid,
+            0.0,
+            &BoundaryConditions1D::None,
+        )
+        .unwrap();
 
-        assert!(partial_x_scalar_field.test_equality(&expected_result, 1e-6));
+        assert!(utils::scalar_field_equality(
+            &partial_x_scalar_field,
+            &expected_result,
+            1e-6
+        ));
 
-        // Test the derivative of the scalar field x.
-        let scalar_field =
-            ScalarField1D::function_to_scalar_field(&grid, |x| x);
-        let partial_x_scalar_field = scalar_field.partial_x();
+        // Test the derivative of the scalar field x with None BCs.
+        let scalar_field = ScalarField1D::function_to_scalar_field(
+            &grid,
+            |x| x,
+            &BoundaryConditions1D::None,
+        )
+        .unwrap();
+        let partial_x_scalar_field = scalar_field.partial_x().unwrap();
 
-        let expected_result =
-            ScalarField1D::new_constant_scalar_field(&grid, 1.0);
+        let expected_result = ScalarField1D::new_constant_scalar_field(
+            &grid,
+            1.0,
+            &BoundaryConditions1D::None,
+        )
+        .unwrap();
 
-        assert!(partial_x_scalar_field.test_equality(&expected_result, 1e-6));
-
-        // Test the derivative of the scalar field x^2.
-        let scalar_field =
-            ScalarField1D::function_to_scalar_field(&grid, |x| x.powi(2));
-        let partial_x_scalar_field = scalar_field.partial_x();
-
-        let expected_result =
-            ScalarField1D::function_to_scalar_field(&grid, |x| 2.0 * x);
-
-        assert!(partial_x_scalar_field.test_equality(&expected_result, 1e-6));
-    }
-
-    #[test]
-    fn test_central_difference_derivative_first_order_at_boundaries() {
-        let grid = Grid::new_uniform_grid(0.0, 1.0, 100);
-
-        // Test the derivative of a constant scalar field.
-        let scalar_field = ScalarField1D::new_constant_scalar_field(&grid, 1.0);
-        let partial_x_scalar_field = scalar_field
-            .central_difference_derivative_first_order_at_boundaries();
-
-        let expected_result =
-            ScalarField1D::new_constant_scalar_field(&grid, 0.0);
-
-        assert!(partial_x_scalar_field.test_equality(&expected_result, 1e-6));
-
-        // Test the derivative of the scalar field x.
-        let scalar_field =
-            ScalarField1D::function_to_scalar_field(&grid, |x| x);
-        let partial_x_scalar_field = scalar_field
-            .central_difference_derivative_first_order_at_boundaries();
-
-        let expected_result =
-            ScalarField1D::new_constant_scalar_field(&grid, 1.0);
-
-        assert!(partial_x_scalar_field.test_equality(&expected_result, 1e-6));
-    }
-
-    #[test]
-    fn test_central_difference_derivative_quadratic_at_boundaries() {
-        let grid = Grid::new_uniform_grid(0.0, 1.0, 100);
-
-        // Test the derivative of a constant scalar field.
-        let scalar_field = ScalarField1D::new_constant_scalar_field(&grid, 1.0);
-        let partial_x_scalar_field = scalar_field
-            .central_difference_derivative_quadratic_at_boundaries();
-
-        let expected_result =
-            ScalarField1D::new_constant_scalar_field(&grid, 0.0);
-
-        assert!(partial_x_scalar_field.test_equality(&expected_result, 1e-6));
-
-        // Test the derivative of the scalar field x.
-        let scalar_field =
-            ScalarField1D::function_to_scalar_field(&grid, |x| x);
-        let partial_x_scalar_field = scalar_field
-            .central_difference_derivative_quadratic_at_boundaries();
-
-        let expected_result =
-            ScalarField1D::new_constant_scalar_field(&grid, 1.0);
-
-        assert!(partial_x_scalar_field.test_equality(&expected_result, 1e-6));
+        assert!(utils::scalar_field_equality(
+            &partial_x_scalar_field,
+            &expected_result,
+            1e-6
+        ));
 
         // Test the derivative of the scalar field x^2.
-        let scalar_field =
-            ScalarField1D::function_to_scalar_field(&grid, |x| x.powi(2));
-        let partial_x_scalar_field = scalar_field
-            .central_difference_derivative_quadratic_at_boundaries();
+        let scalar_field = ScalarField1D::function_to_scalar_field(
+            &grid,
+            |x| x.powi(2),
+            &BoundaryConditions1D::None,
+        )
+        .unwrap();
+        let partial_x_scalar_field = scalar_field.partial_x().unwrap();
 
-        let expected_result =
-            ScalarField1D::function_to_scalar_field(&grid, |x| 2.0 * x);
+        let expected_result = ScalarField1D::function_to_scalar_field(
+            &grid,
+            |x| 2.0 * x,
+            &BoundaryConditions1D::None,
+        )
+        .unwrap();
 
-        assert!(partial_x_scalar_field.test_equality(&expected_result, 1e-6));
+        assert!(utils::scalar_field_equality(
+            &partial_x_scalar_field,
+            &expected_result,
+            1e-6
+        ));
     }
+
+    // #[test]
+    // fn test_central_difference_derivative_quadratic_at_boundaries() {
+    //     let grid = Grid::new_uniform_grid(0.0, 1.0, 100);
+
+    //     // Test the derivative of a constant scalar field.
+    //     let scalar_field = ScalarField1D::new_constant_scalar_field(&grid, 1.0);
+    //     let partial_x_scalar_field = scalar_field
+    //         .central_difference_derivative_quadratic_at_boundaries();
+
+    //     let expected_result =
+    //         ScalarField1D::new_constant_scalar_field(&grid, 0.0);
+
+    //     assert!(partial_x_scalar_field.test_equality(&expected_result, 1e-6));
+
+    //     // Test the derivative of the scalar field x.
+    //     let scalar_field =
+    //         ScalarField1D::function_to_scalar_field(&grid, |x| x);
+    //     let partial_x_scalar_field = scalar_field
+    //         .central_difference_derivative_quadratic_at_boundaries();
+
+    //     let expected_result =
+    //         ScalarField1D::new_constant_scalar_field(&grid, 1.0);
+
+    //     assert!(partial_x_scalar_field.test_equality(&expected_result, 1e-6));
+
+    //     // Test the derivative of the scalar field x^2.
+    //     let scalar_field =
+    //         ScalarField1D::function_to_scalar_field(&grid, |x| x.powi(2));
+    //     let partial_x_scalar_field = scalar_field
+    //         .central_difference_derivative_quadratic_at_boundaries();
+
+    //     let expected_result =
+    //         ScalarField1D::function_to_scalar_field(&grid, |x| 2.0 * x);
+
+    //     assert!(partial_x_scalar_field.test_equality(&expected_result, 1e-6));
+    // }
 
     #[test]
     fn test_new_scalar_field_error() {
         let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
         let field_values = vec![1.0, 2.0, 3.0];
-        let result = ScalarField1D::new_scalar_field(&grid, &field_values);
+        let result = ScalarField1D::new_scalar_field(
+            &grid,
+            &field_values,
+            &BoundaryConditions1D::None,
+        );
         assert!(result.is_err());
         assert_eq!(
             result.err().unwrap(),
@@ -780,11 +727,20 @@ mod tests {
         let grid2 = Grid::new_uniform_grid(0.0, 2.0, 5);
         let field_values1 = vec![1.0, 2.0, 3.0, 4.0, 5.0];
         let field_values2 = vec![4.0, 3.0, 2.0, 1.0, 0.0];
-        let scalar_field1 =
-            ScalarField1D::new_scalar_field(&grid1, &field_values1).unwrap();
-        let scalar_field2 =
-            ScalarField1D::new_scalar_field(&grid2, &field_values2).unwrap();
-        let result = scalar_field1.add(&scalar_field2);
+        let scalar_field1 = ScalarField1D::new_scalar_field(
+            &grid1,
+            &field_values1,
+            &BoundaryConditions1D::None,
+        )
+        .unwrap();
+        let scalar_field2 = ScalarField1D::new_scalar_field(
+            &grid2,
+            &field_values2,
+            &BoundaryConditions1D::None,
+        )
+        .unwrap();
+        let result =
+            scalar_field1.add(&scalar_field2, &BoundaryConditions1D::None);
         assert!(result.is_err());
         assert_eq!(result.err().unwrap(), "Grids do not match");
     }
@@ -795,11 +751,20 @@ mod tests {
         let grid2 = Grid::new_uniform_grid(0.0, 2.0, 5);
         let field_values1 = vec![1.0, 2.0, 3.0, 4.0, 5.0];
         let field_values2 = vec![4.0, 3.0, 2.0, 1.0, 0.0];
-        let scalar_field1 =
-            ScalarField1D::new_scalar_field(&grid1, &field_values1).unwrap();
-        let scalar_field2 =
-            ScalarField1D::new_scalar_field(&grid2, &field_values2).unwrap();
-        let result = scalar_field1.subtract(&scalar_field2);
+        let scalar_field1 = ScalarField1D::new_scalar_field(
+            &grid1,
+            &field_values1,
+            &BoundaryConditions1D::None,
+        )
+        .unwrap();
+        let scalar_field2 = ScalarField1D::new_scalar_field(
+            &grid2,
+            &field_values2,
+            &BoundaryConditions1D::None,
+        )
+        .unwrap();
+        let result =
+            scalar_field1.subtract(&scalar_field2, &BoundaryConditions1D::None);
         assert!(result.is_err());
         assert_eq!(result.err().unwrap(), "Grids do not match");
     }
@@ -810,11 +775,20 @@ mod tests {
         let grid2 = Grid::new_uniform_grid(0.0, 2.0, 5);
         let field_values1 = vec![1.0, 2.0, 3.0, 4.0, 5.0];
         let field_values2 = vec![4.0, 3.0, 2.0, 1.0, 0.0];
-        let scalar_field1 =
-            ScalarField1D::new_scalar_field(&grid1, &field_values1).unwrap();
-        let scalar_field2 =
-            ScalarField1D::new_scalar_field(&grid2, &field_values2).unwrap();
-        let result = scalar_field1.multiply(&scalar_field2);
+        let scalar_field1 = ScalarField1D::new_scalar_field(
+            &grid1,
+            &field_values1,
+            &BoundaryConditions1D::None,
+        )
+        .unwrap();
+        let scalar_field2 = ScalarField1D::new_scalar_field(
+            &grid2,
+            &field_values2,
+            &BoundaryConditions1D::None,
+        )
+        .unwrap();
+        let result =
+            scalar_field1.multiply(&scalar_field2, &BoundaryConditions1D::None);
         assert!(result.is_err());
         assert_eq!(result.err().unwrap(), "Grids do not match");
     }
