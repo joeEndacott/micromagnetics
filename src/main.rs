@@ -1,3 +1,4 @@
+pub mod boundary_conditions;
 pub mod grid;
 pub mod landau_lifshitz_gilbert_equation;
 pub mod quadratic_interpolation;
