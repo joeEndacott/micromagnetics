@@ -374,7 +374,8 @@ impl ScalarField1D {
 }
 
 // Calculus operations.
-// Todo: implement different operations for different boundary conditions.
+// Todo: Implement a function which calculates the second partial derivative
+// of the scalar field with respect to x.
 impl ScalarField1D {
     /// # Partial derivative with respect to x
     ///
@@ -392,13 +393,13 @@ impl ScalarField1D {
         match self.boundary_conditions {
             BoundaryConditions1D::None
             | BoundaryConditions1D::DirichletScalar(_, _) => {
-                Ok(self.central_difference_derivative_none_or_dirichlet_bcs())
+                Ok(self.central_difference_derivative_none_or_dirichlet_bcs()?)
             }
             BoundaryConditions1D::Periodic => {
-                Ok(self.central_difference_derivative_periodic_bcs())
+                Ok(self.central_difference_derivative_periodic_bcs()?)
             }
             BoundaryConditions1D::NeumannScalar(_, _) => {
-                Ok(self.central_difference_derivative_neumann_bcs())
+                Ok(self.central_difference_derivative_neumann_bcs()?)
             }
             _ => {
                 return Err(
@@ -427,9 +428,13 @@ impl ScalarField1D {
     ///
     /// The resulting scalar field has the default boundary conditions.
     ///
+    /// ## Todo
+    /// Move the quadratic interpolation functions to a separate helper
+    /// function.
+    ///
     fn central_difference_derivative_none_or_dirichlet_bcs(
         self: &Self,
-    ) -> Self {
+    ) -> Result<Self, &'static str> {
         let num_points = self.grid.grid_points.len();
         let mut partial_x_values = Vec::with_capacity(num_points);
 
@@ -451,8 +456,7 @@ impl ScalarField1D {
                     quadratic_interpolation::quadratic_interpolation_coefficients(
                     points,
                     function_values,
-                    )
-                    .unwrap();
+                    )?;
                 partial_x_values.push(quadratic_interpolation::quadratic_derivative(
                     coefficients,
                     self.grid.grid_points[0],
@@ -484,21 +488,20 @@ impl ScalarField1D {
                     quadratic_interpolation::quadratic_interpolation_coefficients(
                     points,
                     function_values,
-                    )
-                    .unwrap();
+                    )?;
                 partial_x_values.push(quadratic_interpolation::quadratic_derivative(
                     coefficients,
                     self.grid.grid_points[num_points - 1],
                 ));
             }
-            _ => panic!("Boundary conditions must be None or DirichletScalar for this method"),
+            _ => return Err("Boundary conditions must be None or DirichletScalar for this method"),
         }
 
-        ScalarField1D {
+        Ok(ScalarField1D {
             grid: self.grid.clone(),
             field_values: partial_x_values,
             boundary_conditions: BoundaryConditions1D::default(),
-        }
+        })
     }
 
     /// # Central difference derivative
@@ -517,7 +520,9 @@ impl ScalarField1D {
     ///
     /// The resulting scalar field has the default boundary conditions.
     ///
-    fn central_difference_derivative_periodic_bcs(self: &Self) -> Self {
+    fn central_difference_derivative_periodic_bcs(
+        self: &Self,
+    ) -> Result<Self, &'static str> {
         let num_points = self.grid.grid_points.len();
         let mut partial_x_values = Vec::with_capacity(num_points);
 
@@ -545,14 +550,14 @@ impl ScalarField1D {
             // Right boundary
             partial_x_values.push(partial_x_values[0]);
         } else {
-            panic!("Boundary conditions must be NeumannScalar for this method");
+            return Err("Boundary conditions must be periodic for this method");
         }
 
-        ScalarField1D {
+        Ok(ScalarField1D {
             grid: self.grid.clone(),
             field_values: partial_x_values,
             boundary_conditions: BoundaryConditions1D::default(),
-        }
+        })
     }
 
     /// # Central difference derivative
@@ -571,7 +576,9 @@ impl ScalarField1D {
     ///
     /// The resulting scalar field has the default boundary conditions.
     ///
-    fn central_difference_derivative_neumann_bcs(self: &Self) -> Self {
+    fn central_difference_derivative_neumann_bcs(
+        self: &Self,
+    ) -> Result<Self, &'static str> {
         let num_points = self.grid.grid_points.len();
         let mut partial_x_values = Vec::with_capacity(num_points);
 
@@ -595,14 +602,16 @@ impl ScalarField1D {
             // Right boundary
             partial_x_values.push(right_boundary_value);
         } else {
-            panic!("Boundary conditions must be NeumannScalar for this method");
+            return Err(
+                "Boundary conditions must be NeumannScalar for this method",
+            );
         }
 
-        ScalarField1D {
+        Ok(ScalarField1D {
             grid: self.grid.clone(),
             field_values: partial_x_values,
             boundary_conditions: BoundaryConditions1D::default(),
-        }
+        })
     }
 }
 

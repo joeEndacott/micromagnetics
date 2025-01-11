@@ -117,11 +117,78 @@ impl VectorField1D {
         let vy_values = self.field_values.iter().map(|v| v[1]).collect();
         let vz_values = self.field_values.iter().map(|v| v[2]).collect();
 
-        Ok([
-            ScalarField1D::new_scalar_field(&self.grid, &vx_values).unwrap(),
-            ScalarField1D::new_scalar_field(&self.grid, &vy_values).unwrap(),
-            ScalarField1D::new_scalar_field(&self.grid, &vz_values).unwrap(),
-        ])
+        let mut scalar_field_x =
+            ScalarField1D::new_scalar_field(&self.grid, &vx_values)?;
+        let mut scalar_field_y =
+            ScalarField1D::new_scalar_field(&self.grid, &vy_values)?;
+        let mut scalar_field_z =
+            ScalarField1D::new_scalar_field(&self.grid, &vz_values)?;
+
+        // Assign correct BCs to each scalar field
+        match self.boundary_conditions {
+            BoundaryConditions1D::None => {
+                // Assign None BCs to each scalar field
+                scalar_field_x.boundary_conditions = BoundaryConditions1D::None;
+                scalar_field_y.boundary_conditions = BoundaryConditions1D::None;
+                scalar_field_z.boundary_conditions = BoundaryConditions1D::None;
+            }
+            BoundaryConditions1D::Periodic => {
+                // Assign PBCs to each scalar field
+                scalar_field_x.boundary_conditions =
+                    BoundaryConditions1D::Periodic;
+                scalar_field_y.boundary_conditions =
+                    BoundaryConditions1D::Periodic;
+                scalar_field_z.boundary_conditions =
+                    BoundaryConditions1D::Periodic;
+            }
+            BoundaryConditions1D::DirichletVector(
+                left_boundary,
+                right_boundary,
+            ) => {
+                scalar_field_x.boundary_conditions =
+                    BoundaryConditions1D::DirichletScalar(
+                        left_boundary[0],
+                        right_boundary[0],
+                    );
+                scalar_field_y.boundary_conditions =
+                    BoundaryConditions1D::DirichletScalar(
+                        left_boundary[1],
+                        right_boundary[1],
+                    );
+                scalar_field_z.boundary_conditions =
+                    BoundaryConditions1D::DirichletScalar(
+                        left_boundary[2],
+                        right_boundary[2],
+                    );
+            }
+            BoundaryConditions1D::NeumannVector(
+                left_boundary,
+                right_boundary,
+            ) => {
+                scalar_field_x.boundary_conditions =
+                    BoundaryConditions1D::NeumannScalar(
+                        left_boundary[0],
+                        right_boundary[0],
+                    );
+                scalar_field_y.boundary_conditions =
+                    BoundaryConditions1D::NeumannScalar(
+                        left_boundary[1],
+                        right_boundary[1],
+                    );
+                scalar_field_z.boundary_conditions =
+                    BoundaryConditions1D::NeumannScalar(
+                        left_boundary[2],
+                        right_boundary[2],
+                    );
+            }
+            _ => {
+                return Err(
+                    "Boundary conditions not implemented for vector fields",
+                );
+            }
+        }
+
+        Ok([scalar_field_x, scalar_field_y, scalar_field_z])
     }
 
     /// # Scalar fields to vector field
@@ -330,44 +397,31 @@ impl VectorField1D {
     /// with respect to the x coordinate. The result is returned as a new vector
     /// field.
     ///
+    /// The new vector field is given the default boundary conditions.
+    ///
     /// For a `VectorField1D` instance, the grid points lie along the x axis.
     ///
-    /// ## Example use case
-    /// ```
-    /// use crate::grid::Grid;
-    /// use crate::vector_field::VectorField1D;
-    ///
-    /// let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
-    /// let field_values = vec![[1.0, 0.0, 0.0]; grid.grid_points.len()];
-    /// let vector_field = VectorField1D::new_vector_field(&grid, field_values).unwrap();
-    /// let partial_x_vector_field = vector_field.partial_x();
-    /// ```
-    ///
-    pub fn partial_x(self: &Self) -> Self {
+    pub fn partial_x(self: &Self) -> Result<Self, &'static str> {
         // Decompose the vector field into three scalar fields.
-        let (x_values, y_values, z_values) =
-            self.vector_field_to_scalar_fields();
+        let [vx, vy, vz] = self.vector_field_to_scalar_fields()?;
 
         // Compute the partial derivatives of each scalar field.
-        let (partial_x_x_values, partial_x_y_values, partial_x_z_values) = (
-            x_values.partial_x(),
-            y_values.partial_x(),
-            z_values.partial_x(),
-        );
+        let [partial_x_vx, partial_x_vy, partial_x_vz] =
+            [vx.partial_x()?, vy.partial_x()?, vz.partial_x()?];
 
         // Combine the partial derivatives into a new vector field.
         let partial_x_vector_field =
-            VectorField1D::scalar_fields_to_vector_field((
-                &partial_x_x_values,
-                &partial_x_y_values,
-                &partial_x_z_values,
-            ))
-            .unwrap();
+            VectorField1D::scalar_fields_to_vector_field([
+                &partial_x_vx,
+                &partial_x_vy,
+                &partial_x_vz,
+            ])?;
 
-        VectorField1D {
+        Ok(VectorField1D {
             grid: self.grid.clone(),
             field_values: partial_x_vector_field.field_values,
-        }
+            boundary_conditions: BoundaryConditions1D::default(),
+        })
     }
 
     /// # Laplacian
@@ -380,26 +434,10 @@ impl VectorField1D {
     /// defined as the second partial derivative with respect to x of the
     /// vector field.
     ///
-    /// ## Example use case
-    /// ```
-    /// use crate::grid::Grid;
-    /// use crate::vector_field::VectorField1D;
-    ///
-    /// let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
-    /// let field_values = vec![[1.0, 0.0, 0.0]; grid.grid_points.len()];
-    /// let vector_field = VectorField1D::new_vector_field(&grid, field_values).unwrap();
-    /// let laplacian_vector_field = vector_field.laplacian();
-    /// ```
-    ///
-    pub fn laplacian(self: &Self) -> Self {
+    pub fn laplacian(self: &Self) -> Result<Self, &'static str> {
         // Compute the second partial derivative of the vector field with
         // respect to x.
-        let partial_x_x_vector_field = self.partial_x().partial_x();
-
-        VectorField1D {
-            grid: self.grid.clone(),
-            field_values: partial_x_x_vector_field.field_values,
-        }
+        self.partial_x()?.partial_x()
     }
 
     /// # Divergence
@@ -408,34 +446,30 @@ impl VectorField1D {
     /// `divergence` computes the divergence of the current vector field. The
     /// result is returned as a scalar field.
     ///
+    /// The scalar field is given the default boundary conditions.
+    ///
     /// For a 1D vector field defined along the x axis, the divergence is
     /// defined as the partial derivative with respect to x of the x component
     /// of the vector field.
     ///
-    /// ## Example use case
-    /// ```
-    /// use crate::grid::Grid;
-    /// use crate::vector_field::VectorField1D;
-    /// use crate::scalar_field::ScalarField1D;
+    /// ## Todo
+    /// Implement a new function which directly calculates the second partial
+    /// derivative of the vector field with respect to x, rather than
+    /// calculating a first derivative twice.
     ///
-    /// let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
-    /// let field_values = vec![[1.0, 0.0, 0.0]; grid.grid_points.len()];
-    /// let vector_field = VectorField1D::new_vector_field(&grid, field_values).unwrap();
-    /// let divergence_scalar_field = vector_field.divergence();
-    /// ```
-    ///
-    pub fn divergence(self: &Self) -> ScalarField1D {
+    pub fn divergence(self: &Self) -> Result<ScalarField1D, &'static str> {
         // Decompose the vector field into three scalar fields.
-        let (x_values, _, _) = self.vector_field_to_scalar_fields();
+        let [vx, _, _] = self.vector_field_to_scalar_fields()?;
 
         // Compute the partial derivative of the x component of the vector
         // field.
-        let partial_x_values = x_values.partial_x();
+        let partial_x_vx = vx.partial_x()?;
 
-        ScalarField1D {
+        Ok(ScalarField1D {
             grid: self.grid.clone(),
-            field_values: partial_x_values.field_values,
-        }
+            field_values: partial_x_vx.field_values,
+            boundary_conditions: BoundaryConditions1D::default(),
+        })
     }
 
     /// # Curl
@@ -444,41 +478,27 @@ impl VectorField1D {
     /// `curl` computes the curl of the current vector field. The result is
     /// returned as a new vector field.
     ///
+    /// The new vector field is given the default boundary conditions.
+    ///
     /// For a 1D vector field `v = [vx, vy, vz]` defined along the x axis, the
     /// curl of `v` has components `[0, - partial_x(vz), partial_x(vy)]`.
     ///
-    /// ## Example use case
-    /// ```
-    /// use crate::grid::Grid;
-    /// use crate::vector_field::VectorField1D;
-    ///
-    /// let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
-    /// let field_values = vec![[1.0, 0.0, 0.0]; grid.grid_points.len()];
-    /// let vector_field = VectorField1D::new_vector_field(&grid, field_values).unwrap();
-    /// let curl_vector_field = vector_field.curl();
-    /// ```
-    ///
-    pub fn curl(self: &Self) -> Self {
+    pub fn curl(self: &Self) -> Result<Self, &'static str> {
         // Decompose the vector field into three scalar fields.
-        let (_, y_values, z_values) = self.vector_field_to_scalar_fields();
+        let [_, y_values, z_values] = self.vector_field_to_scalar_fields()?;
 
         // Compute the partial derivatives of the y and z components of the
         // vector field.
-        let partial_x_y_values = y_values.partial_x();
-        let partial_x_z_values = z_values.partial_x();
+        let partial_x_y_values = y_values.partial_x()?;
+        let partial_x_z_values = z_values.partial_x()?;
 
-        // Combine the partial derivatives into a new vector field.
-        let curl_vector_field = VectorField1D::scalar_fields_to_vector_field((
+        // Combine the partial derivatives into a new vector field and return
+        // this field.
+        Ok(VectorField1D::scalar_fields_to_vector_field([
             &ScalarField1D::new_constant_scalar_field(&self.grid, 0.0),
             &partial_x_z_values.scale(-1.0),
             &partial_x_y_values,
-        ))
-        .unwrap();
-
-        VectorField1D {
-            grid: self.grid.clone(),
-            field_values: curl_vector_field.field_values,
-        }
+        ])?)
     }
 }
 
