@@ -17,6 +17,11 @@
 /// field. The boundary values are specified as an array of three `f64`
 /// elements.
 ///
+/// For periodic boundary conditions, the field values at the left and right
+/// edges of the domain are equal (i.e. the final grid point is a duplicate
+/// point). This is not conventional, but it allows non-uniform meshes to be
+/// used.
+///
 #[derive(Debug, Clone, PartialEq)]
 pub enum BoundaryConditions1D {
     None,
