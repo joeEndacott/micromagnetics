@@ -1,4 +1,7 @@
-use crate::{grid::Grid, scalar_field::ScalarField1D};
+use crate::{
+    boundary_conditions::BoundaryConditions1D, grid::Grid,
+    scalar_field::ScalarField1D,
+};
 
 /// # Vector field 1D
 ///
@@ -25,6 +28,7 @@ use crate::{grid::Grid, scalar_field::ScalarField1D};
 pub struct VectorField1D {
     pub grid: Grid,
     pub field_values: Vec<[f64; 3]>,
+    pub boundary_conditions: BoundaryConditions1D,
 }
 
 // Constructor functions.

@@ -35,7 +35,10 @@ pub fn scalar_field_equality(
     scalar_field_2: &ScalarField1D,
     tolerance: f64,
 ) -> bool {
-    if scalar_field_1.grid != scalar_field_2.grid {
+    if scalar_field_1.grid != scalar_field_2.grid
+        || scalar_field_1.boundary_conditions
+            != scalar_field_2.boundary_conditions
+    {
         return false;
     }
 
@@ -56,7 +59,10 @@ pub fn vector_field_equality(
     vector_field_2: &VectorField1D,
     tolerance: f64,
 ) -> bool {
-    if vector_field_1.grid != vector_field_2.grid {
+    if vector_field_1.grid != vector_field_2.grid
+        || vector_field_1.boundary_conditions
+            != vector_field_2.boundary_conditions
+    {
         return false;
     }
 
