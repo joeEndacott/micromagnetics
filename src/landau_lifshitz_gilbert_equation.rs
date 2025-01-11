@@ -47,7 +47,7 @@ fn exchange_effective_field(
     exchange_constant: f64,
     magnetization: &VectorField1D,
 ) -> VectorField1D {
-    magnetization.laplacian().scale(exchange_constant)
+    magnetization.laplacian().unwrap().scale(exchange_constant)
 }
 
 /// # DMI effective field
@@ -70,7 +70,7 @@ fn dmi_effective_field(
     dmi_constant: f64,
     magnetization: &VectorField1D,
 ) -> VectorField1D {
-    magnetization.curl().scale(-1.0 * dmi_constant)
+    magnetization.curl().unwrap().scale(-1.0 * dmi_constant)
 }
 
 /// # Landau-Lifshitz-Gilbert right-hand side

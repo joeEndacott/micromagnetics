@@ -505,7 +505,7 @@ impl VectorField1D {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::grid::Grid;
+    use crate::{grid::Grid, utils};
 
     mod traits {
         use super::*;
@@ -838,6 +838,8 @@ mod tests {
     }
 
     mod vector_calculus_operations {
+        use super::*;
+
         #[test]
         fn test_partial_x() {
             let grid = Grid::new_uniform_grid(0.0, 1.0, 100);
@@ -846,20 +848,22 @@ mod tests {
             let v_x = ScalarField1D::new_constant_scalar_field(&grid, 1.0);
             let v_y = ScalarField1D::new_constant_scalar_field(&grid, 3.0);
             let v_z = ScalarField1D::new_constant_scalar_field(&grid, -6.0);
-            let vector_field = VectorField1D::scalar_fields_to_vector_field((
+            let vector_field = VectorField1D::scalar_fields_to_vector_field([
                 &v_x, &v_y, &v_z,
-            ))
+            ])
             .unwrap();
-            let partial_x_vector_field = vector_field.partial_x();
+            let partial_x_vector_field = vector_field.partial_x().unwrap();
 
             let expected_result = VectorField1D::new_constant_vector_field(
                 &grid,
                 [0.0, 0.0, 0.0],
             );
 
-            assert!(
-                partial_x_vector_field.test_equality(&expected_result, 1e-6)
-            );
+            assert!(utils::vector_field_equality(
+                &expected_result,
+                &partial_x_vector_field,
+                1e-6
+            ));
 
             // Test the derivative of the vector field [x, -2x, 4x].
             let vx = ScalarField1D::function_to_scalar_field(&grid, |x| x);
@@ -868,18 +872,20 @@ mod tests {
             let vz =
                 ScalarField1D::function_to_scalar_field(&grid, |x| 4.0 * x);
             let vector_field =
-                VectorField1D::scalar_fields_to_vector_field((&vx, &vy, &vz))
+                VectorField1D::scalar_fields_to_vector_field([&vx, &vy, &vz])
                     .unwrap();
-            let partial_x_vector_field = vector_field.partial_x();
+            let partial_x_vector_field = vector_field.partial_x().unwrap();
 
             let expected_result = VectorField1D::new_constant_vector_field(
                 &grid,
                 [1.0, -2.0, 4.0],
             );
 
-            assert!(
-                partial_x_vector_field.test_equality(&expected_result, 1e-6)
-            );
+            assert!(utils::vector_field_equality(
+                &expected_result,
+                &partial_x_vector_field,
+                1e-6
+            ));
         }
 
         #[test]
@@ -890,20 +896,22 @@ mod tests {
             let v_x = ScalarField1D::new_constant_scalar_field(&grid, 1.0);
             let v_y = ScalarField1D::new_constant_scalar_field(&grid, 3.0);
             let v_z = ScalarField1D::new_constant_scalar_field(&grid, -6.0);
-            let vector_field = VectorField1D::scalar_fields_to_vector_field((
+            let vector_field = VectorField1D::scalar_fields_to_vector_field([
                 &v_x, &v_y, &v_z,
-            ))
+            ])
             .unwrap();
-            let laplacian_vector_field = vector_field.laplacian();
+            let laplacian_vector_field = vector_field.laplacian().unwrap();
 
             let expected_result = VectorField1D::new_constant_vector_field(
                 &grid,
                 [0.0, 0.0, 0.0],
             );
 
-            assert!(
-                laplacian_vector_field.test_equality(&expected_result, 1e-6)
-            );
+            assert!(utils::vector_field_equality(
+                &expected_result,
+                &laplacian_vector_field,
+                1e-6
+            ));
 
             // Test the Laplacian of the vector field [x^2, -2x^2, 4x^2].
             let vx = ScalarField1D::function_to_scalar_field(&grid, |x| x * x);
@@ -913,18 +921,20 @@ mod tests {
             let vz =
                 ScalarField1D::function_to_scalar_field(&grid, |x| 4.0 * x * x);
             let vector_field =
-                VectorField1D::scalar_fields_to_vector_field((&vx, &vy, &vz))
+                VectorField1D::scalar_fields_to_vector_field([&vx, &vy, &vz])
                     .unwrap();
-            let laplacian_vector_field = vector_field.laplacian();
+            let laplacian_vector_field = vector_field.laplacian().unwrap();
 
             let expected_result = VectorField1D::new_constant_vector_field(
                 &grid,
                 [2.0, -4.0, 8.0],
             );
 
-            assert!(
-                laplacian_vector_field.test_equality(&expected_result, 1e-2)
-            );
+            assert!(utils::vector_field_equality(
+                &expected_result,
+                &laplacian_vector_field,
+                1e-6
+            ));
         }
 
         #[test]
@@ -936,30 +946,34 @@ mod tests {
                 &grid,
                 [1.0, 3.0, -6.0],
             );
-            let divergence_scalar_field = vector_field.divergence();
+            let divergence_scalar_field = vector_field.divergence().unwrap();
 
             let expected_result =
                 ScalarField1D::new_constant_scalar_field(&grid, 0.0);
 
-            assert!(
-                divergence_scalar_field.test_equality(&expected_result, 1e-6)
-            );
+            assert!(utils::scalar_field_equality(
+                &expected_result,
+                &divergence_scalar_field,
+                1e-6
+            ));
 
             // Test the divergence of the vector field [x, 0, 0].
             let vx = ScalarField1D::function_to_scalar_field(&grid, |x| x);
             let vy = ScalarField1D::new_constant_scalar_field(&grid, 0.0);
             let vz = ScalarField1D::new_constant_scalar_field(&grid, 0.0);
             let vector_field =
-                VectorField1D::scalar_fields_to_vector_field((&vx, &vy, &vz))
+                VectorField1D::scalar_fields_to_vector_field([&vx, &vy, &vz])
                     .unwrap();
-            let divergence_scalar_field = vector_field.divergence();
+            let divergence_scalar_field = vector_field.divergence().unwrap();
 
             let expected_result =
                 ScalarField1D::new_constant_scalar_field(&grid, 1.0);
 
-            assert!(
-                divergence_scalar_field.test_equality(&expected_result, 1e-6)
-            );
+            assert!(utils::scalar_field_equality(
+                &expected_result,
+                &divergence_scalar_field,
+                1e-6
+            ));
 
             // // Test the divergence of the vector field [2*x, x^3, x^7].
             let vx =
@@ -969,32 +983,36 @@ mod tests {
             let vz =
                 ScalarField1D::function_to_scalar_field(&grid, |x| x.powi(7));
             let vector_field =
-                VectorField1D::scalar_fields_to_vector_field((&vx, &vy, &vz))
+                VectorField1D::scalar_fields_to_vector_field([&vx, &vy, &vz])
                     .unwrap();
-            let divergence_scalar_field = vector_field.divergence();
+            let divergence_scalar_field = vector_field.divergence().unwrap();
 
             let expected_result =
                 ScalarField1D::new_constant_scalar_field(&grid, 2.0);
 
-            assert!(
-                divergence_scalar_field.test_equality(&expected_result, 1e-6)
-            );
+            assert!(utils::scalar_field_equality(
+                &expected_result,
+                &divergence_scalar_field,
+                1e-6
+            ));
 
             // Test the divergence of the vector field [x^2, x, x].
             let vx = ScalarField1D::function_to_scalar_field(&grid, |x| x * x);
             let vy = ScalarField1D::function_to_scalar_field(&grid, |x| x);
             let vz = ScalarField1D::function_to_scalar_field(&grid, |x| x);
             let vector_field =
-                VectorField1D::scalar_fields_to_vector_field((&vx, &vy, &vz))
+                VectorField1D::scalar_fields_to_vector_field([&vx, &vy, &vz])
                     .unwrap();
-            let divergence_scalar_field = vector_field.divergence();
+            let divergence_scalar_field = vector_field.divergence().unwrap();
 
             let expected_result =
                 ScalarField1D::function_to_scalar_field(&grid, |x| 2.0 * x);
 
-            assert!(
-                divergence_scalar_field.test_equality(&expected_result, 1e-6)
-            );
+            assert!(utils::scalar_field_equality(
+                &expected_result,
+                &divergence_scalar_field,
+                1e-6
+            ));
         }
 
         #[test]
@@ -1006,14 +1024,18 @@ mod tests {
                 &grid,
                 [1.0, 3.0, -6.0],
             );
-            let curl_vector_field = vector_field.curl();
+            let curl_vector_field = vector_field.curl().unwrap();
 
             let expected_result = VectorField1D::new_constant_vector_field(
                 &grid,
                 [0.0, 0.0, 0.0],
             );
 
-            assert!(curl_vector_field.test_equality(&expected_result, 1e-6));
+            assert!(utils::vector_field_equality(
+                &expected_result,
+                &curl_vector_field,
+                1e-6
+            ));
 
             // Test the curl of the vector field [x^2, x, -x].
             let vx =
@@ -1021,32 +1043,40 @@ mod tests {
             let vy = ScalarField1D::function_to_scalar_field(&grid, |x| x);
             let vz = ScalarField1D::function_to_scalar_field(&grid, |x| -x);
             let vector_field =
-                VectorField1D::scalar_fields_to_vector_field((&vx, &vy, &vz))
+                VectorField1D::scalar_fields_to_vector_field([&vx, &vy, &vz])
                     .unwrap();
-            let curl_vector_field = vector_field.curl();
+            let curl_vector_field = vector_field.curl().unwrap();
 
             let expected_result = VectorField1D::new_constant_vector_field(
                 &grid,
                 [0.0, 1.0, 1.0],
             );
 
-            assert!(curl_vector_field.test_equality(&expected_result, 1e-6));
+            assert!(utils::vector_field_equality(
+                &expected_result,
+                &curl_vector_field,
+                1e-6
+            ));
 
             // Test the curl of the vector field [x, x^2, -x^2].
             let vx = ScalarField1D::function_to_scalar_field(&grid, |x| x);
             let vy = ScalarField1D::function_to_scalar_field(&grid, |x| x * x);
             let vz = ScalarField1D::function_to_scalar_field(&grid, |x| -x * x);
             let vector_field =
-                VectorField1D::scalar_fields_to_vector_field((&vx, &vy, &vz))
+                VectorField1D::scalar_fields_to_vector_field([&vx, &vy, &vz])
                     .unwrap();
-            let curl_vector_field = vector_field.curl();
+            let curl_vector_field = vector_field.curl().unwrap();
 
             let expected_result =
                 VectorField1D::function_to_vector_field(&grid, |x| {
                     [0.0, 2.0 * x, 2.0 * x]
                 });
 
-            assert!(curl_vector_field.test_equality(&expected_result, 1e-6));
+            assert!(utils::vector_field_equality(
+                &expected_result,
+                &curl_vector_field,
+                1e-6
+            ));
         }
     }
 }

@@ -1110,7 +1110,7 @@ mod tests {
         #[test]
         fn test_apply_scalar_bcs_dirichlet_within_tolerance() {
             let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
-            let field_values = vec![1.000001, 2.0, 3.0, 4.0, 5.000001];
+            let field_values = vec![1.0000001, 2.0, 3.0, 4.0, 5.0000001];
             let mut scalar_field =
                 ScalarField1D::new_scalar_field(&grid, &field_values).unwrap();
             let boundary_conditions =
