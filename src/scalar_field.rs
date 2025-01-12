@@ -322,7 +322,7 @@ impl ScalarField1D {
     /// field's values.
     ///
     pub fn apply_scalar_bcs(
-        self: Self,
+        self: &Self,
         boundary_conditions: &BoundaryConditions1D,
     ) -> Result<Self, &'static str> {
         const TOLERANCE: f64 = 1e-6;
@@ -847,9 +847,8 @@ mod tests {
         }
 
         #[test]
-        fn test_divide_scalar_fields_with_mismatched_grids() {
+        fn test_divide_by_zero_error() {
             let grid1 = Grid::new_uniform_grid(0.0, 1.0, 5);
-            let grid2 = Grid::new_uniform_grid(0.0, 2.0, 5);
             let field_values1 = vec![4.0, 9.0, 16.0, 25.0, 36.0];
             let field_values2 = vec![2.0, 3.0, 4.0, 5.0, 0.0];
             let scalar_field1 =
@@ -861,7 +860,16 @@ mod tests {
             let result = scalar_field1.divide(&scalar_field2);
             assert!(result.is_err());
             assert_eq!(result.err().unwrap(), "Division by zero");
+        }
 
+        #[test]
+        fn test_divide_scalar_fields_with_mismatched_grids() {
+            let grid1 = Grid::new_uniform_grid(0.0, 1.0, 5);
+            let grid2 = Grid::new_uniform_grid(0.0, 2.0, 5);
+            let field_values1 = vec![4.0, 9.0, 16.0, 25.0, 36.0];
+            let scalar_field1 =
+                ScalarField1D::new_scalar_field(&grid1, &field_values1)
+                    .unwrap();
             let scalar_field2 = ScalarField1D::new_scalar_field(
                 &grid2,
                 &vec![2.0, 3.0, 4.0, 5.0, 6.0],
@@ -1354,6 +1362,101 @@ mod tests {
                 &expected_result,
                 1e-2
             ));
+        }
+
+        #[test]
+        fn test_partial_x_neumann_bcs() {
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 100);
+
+            // Test the derivative of a constant scalar field.
+            let scalar_field =
+                ScalarField1D::new_constant_scalar_field(&grid, 1.0);
+            let scalar_field_with_bcs = scalar_field
+                .apply_scalar_bcs(&BoundaryConditions1D::NeumannScalar(
+                    0.0, 0.0,
+                ))
+                .unwrap();
+            let partial_x_scalar_field =
+                scalar_field_with_bcs.partial_x().unwrap();
+
+            let expected_result =
+                ScalarField1D::new_constant_scalar_field(&grid, 0.0);
+
+            assert!(utils::scalar_field_equality(
+                &partial_x_scalar_field,
+                &expected_result,
+                1e-6
+            ));
+
+            // Test the derivative of the scalar field x.
+            let scalar_field =
+                ScalarField1D::function_to_scalar_field(&grid, |x| x);
+            let scalar_field_with_bcs = scalar_field
+                .apply_scalar_bcs(&BoundaryConditions1D::NeumannScalar(
+                    1.0, 1.0,
+                ))
+                .unwrap();
+            let partial_x_scalar_field =
+                scalar_field_with_bcs.partial_x().unwrap();
+
+            let expected_result =
+                ScalarField1D::new_constant_scalar_field(&grid, 1.0);
+
+            assert!(utils::scalar_field_equality(
+                &partial_x_scalar_field,
+                &expected_result,
+                1e-6
+            ));
+
+            // Test the derivative of the scalar field x^2.
+            let scalar_field =
+                ScalarField1D::function_to_scalar_field(&grid, |x| x.powi(2));
+            let scalar_field_with_bcs = scalar_field
+                .apply_scalar_bcs(&BoundaryConditions1D::NeumannScalar(
+                    0.0, 2.0,
+                ))
+                .unwrap();
+            let partial_x_scalar_field =
+                scalar_field_with_bcs.partial_x().unwrap();
+
+            let expected_result =
+                ScalarField1D::function_to_scalar_field(&grid, |x| 2.0 * x);
+
+            assert!(utils::scalar_field_equality(
+                &partial_x_scalar_field,
+                &expected_result,
+                1e-6
+            ));
+        }
+
+        #[test]
+        fn test_partial_x_error_unsupported_boundary_conditions() {
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 100);
+            let scalar_field =
+                ScalarField1D::new_constant_scalar_field(&grid, 1.0);
+
+            // Test with unsupported boundary conditions
+            let scalar_field_with_bcs = scalar_field
+                .apply_scalar_bcs(&BoundaryConditions1D::DirichletVector(
+                    [1.0, 1.0, 1.0],
+                    [1.0, 1.0, 1.0],
+                ))
+                .unwrap_err();
+            assert_eq!(
+                scalar_field_with_bcs,
+                "Vector BCs are not supported for scalar fields"
+            );
+
+            let scalar_field_with_bcs = scalar_field
+                .apply_scalar_bcs(&BoundaryConditions1D::NeumannVector(
+                    [1.0, 1.0, 1.0],
+                    [1.0, 1.0, 1.0],
+                ))
+                .unwrap_err();
+            assert_eq!(
+                scalar_field_with_bcs,
+                "Vector BCs are not supported for scalar fields"
+            );
         }
     }
 }
