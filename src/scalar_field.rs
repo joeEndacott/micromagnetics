@@ -315,7 +315,7 @@ impl ScalarField1D {
     /// ## Description
     /// Applies the specified boundary conditions to the scalar field.
     ///
-    /// If the boundary conditions are successfully applied, returns `Ok(())`,
+    /// If the boundary conditions are successfully applied, returns `Ok(Self)`,
     /// else returns an error message.
     ///
     /// The specified boundary conditions must be compatible with the scalar

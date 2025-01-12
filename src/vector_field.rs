@@ -1,6 +1,6 @@
 use crate::{
     boundary_conditions::BoundaryConditions1D, grid::Grid,
-    scalar_field::ScalarField1D,
+    scalar_field::ScalarField1D, utils,
 };
 
 /// # Vector field 1D
@@ -385,6 +385,142 @@ impl VectorField1D {
             field_values,
             boundary_conditions: BoundaryConditions1D::default(),
         })
+    }
+}
+
+// Boundary conditions.
+impl VectorField1D {
+    /// # Check boundary conditions are satisfied for a vector field
+    ///
+    /// ## Description
+    /// Checks that the specified boundary conditions are satisfied for a
+    /// vector field within a set tolerance.
+    ///
+    /// If the boundary conditions are satisfied, returns `Ok(())`, else returns
+    /// an error message.
+    ///
+    /// The specified boundary conditions do not need to be the same as the
+    /// boundary conditions of the vector field. For example, the vector field
+    /// may have None boundary conditions, but the user may want to check
+    /// if the field satisfies Dirichlet boundary conditions, so that the
+    /// boundary conditions of the field can be changed.
+    ///
+    pub fn check_vector_bcs(
+        self: &Self,
+        boundary_conditions: &BoundaryConditions1D,
+        tolerance: f64,
+    ) -> Result<(), &'static str> {
+        let num_points = self.field_values.len();
+        if num_points < 2 && boundary_conditions != &BoundaryConditions1D::None
+        {
+            return Err("At least two grid points are required");
+        }
+
+        match boundary_conditions {
+            BoundaryConditions1D::None => Ok(()),
+            BoundaryConditions1D::Periodic => {
+                if !utils::vector_equality(
+                    self.field_values[0],
+                    self.field_values[num_points - 1],
+                    tolerance,
+                ) {
+                    return Err("Periodic BCs: Field values do not match at the boundaries");
+                }
+                Ok(())
+            }
+            BoundaryConditions1D::DirichletVector(
+                left_boundary_value,
+                right_boundary_value,
+            ) => {
+                if !utils::vector_equality(
+                    self.field_values[0],
+                    *left_boundary_value,
+                    tolerance,
+                ) || !utils::vector_equality(
+                    self.field_values[num_points - 1],
+                    *right_boundary_value,
+                    tolerance,
+                ) {
+                    return Err("Dirichlet BCs: Field values do not match specified boundary values");
+                }
+                Ok(())
+            }
+            BoundaryConditions1D::NeumannVector(_, _) => {
+                // Implement Neumann BC logic.
+                Ok(())
+            }
+            BoundaryConditions1D::DirichletScalar(_, _)
+            | BoundaryConditions1D::NeumannScalar(_, _) => {
+                return Err("Scalar BCs are not supported for vector fields");
+            }
+        }
+    }
+
+    /// # Apply vector boundary conditions
+    ///
+    /// ## Description
+    /// Applies the specified boundary conditions to the vector field.
+    ///
+    /// If the boundary conditions are successfully applied, returns `Ok(Self)`,
+    /// else returns an error message.
+    ///
+    /// The specified boundary conditions must be compatible with the vector
+    /// field's values.
+    ///
+    pub fn apply_vector_bcs(
+        self: &Self,
+        boundary_conditions: &BoundaryConditions1D,
+    ) -> Result<Self, &'static str> {
+        const TOLERANCE: f64 = 1e-6;
+
+        self.check_vector_bcs(boundary_conditions, TOLERANCE)?;
+
+        let num_points = self.field_values.len();
+        let mut vector_field = self.clone();
+
+        match boundary_conditions {
+            BoundaryConditions1D::None => {
+                vector_field.boundary_conditions = BoundaryConditions1D::None;
+                Ok(vector_field)
+            }
+            BoundaryConditions1D::Periodic => {
+                vector_field.boundary_conditions =
+                    BoundaryConditions1D::Periodic;
+                vector_field.field_values[num_points - 1] =
+                    vector_field.field_values[0];
+                Ok(vector_field)
+            }
+            BoundaryConditions1D::DirichletVector(
+                left_boundary_value,
+                right_boundary_value,
+            ) => {
+                vector_field.boundary_conditions =
+                    BoundaryConditions1D::DirichletVector(
+                        *left_boundary_value,
+                        *right_boundary_value,
+                    );
+                vector_field.field_values[0] = *left_boundary_value;
+                vector_field.field_values[num_points - 1] =
+                    *right_boundary_value;
+                Ok(vector_field)
+            }
+            BoundaryConditions1D::NeumannVector(
+                left_boundary_value,
+                right_boundary_value,
+            ) => {
+                vector_field.boundary_conditions =
+                    BoundaryConditions1D::NeumannVector(
+                        *left_boundary_value,
+                        *right_boundary_value,
+                    );
+                // TODO: Implement Neumann BC logic.
+                Ok(vector_field)
+            }
+            BoundaryConditions1D::DirichletScalar(_, _)
+            | BoundaryConditions1D::NeumannScalar(_, _) => {
+                return Err("Scalar BCs are not supported for vector fields");
+            }
+        }
     }
 }
 
