@@ -540,15 +540,13 @@ impl ScalarField1D {
                             - self.grid.grid_points[num_points - 2])),
             );
 
-            // Calculates the derivative at each grid point using the central
-            // difference scheme.
-            for i in 0..num_points {
+            // Calculates the derivative at each interior grid point using
+            // the central difference scheme.
+            for i in 1..(num_points - 1) {
                 partial_x_values.push(
-                    (self.field_values[(i + 1) % num_points]
-                        - self.field_values[(i - 1 + num_points) % num_points])
-                        / (self.grid.grid_points[(i + 1) % num_points]
-                            - self.grid.grid_points
-                                [(i - 1 + num_points) % num_points]),
+                    (self.field_values[i + 1] - self.field_values[i - 1])
+                        / (self.grid.grid_points[i + 1]
+                            - self.grid.grid_points[i - 1]),
                 );
             }
 
@@ -1098,7 +1096,7 @@ mod tests {
         #[test]
         fn test_apply_scalar_bcs_dirichlet() {
             let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
-            let field_values = vec![0.0, 2.0, 3.0, 4.0, 0.0];
+            let field_values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
             let scalar_field =
                 ScalarField1D::new_scalar_field(&grid, &field_values).unwrap();
             let boundary_conditions =
@@ -1242,62 +1240,120 @@ mod tests {
             ));
         }
 
-        // #[test]
-        // fn test_partial_x_dirichlet_bcs() {
-        //     let grid = Grid::new_uniform_grid(0.0, 1.0, 100);
+        #[test]
+        fn test_partial_x_dirichlet_bcs() {
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 100);
 
-        //     // Test the derivative of a constant scalar field.
-        //     let mut scalar_field =
-        //         ScalarField1D::new_scalar_field(&grid, &vec![1.0; 100])
-        //             .unwrap();
+            // Test the derivative of a constant scalar field.
+            let scalar_field =
+                ScalarField1D::new_scalar_field(&grid, &vec![1.0; 100])
+                    .unwrap();
 
-        //     scalar_field
-        //         .apply_scalar_bcs(&BoundaryConditions1D::DirichletScalar(
-        //             1.0, 1.0,
-        //         ))
-        //         .unwrap();
+            let scalar_field_with_bcs = scalar_field
+                .apply_scalar_bcs(&BoundaryConditions1D::DirichletScalar(
+                    1.0, 1.0,
+                ))
+                .unwrap();
 
-        //     let partial_x_scalar_field = scalar_field.partial_x().unwrap();
+            let partial_x_scalar_field =
+                scalar_field_with_bcs.partial_x().unwrap();
 
-        //     let expected_result =
-        //         ScalarField1D::new_constant_scalar_field(&grid, 0.0);
+            let expected_result =
+                ScalarField1D::new_constant_scalar_field(&grid, 0.0);
 
-        //     assert!(utils::scalar_field_equality(
-        //         &partial_x_scalar_field,
-        //         &expected_result,
-        //         1e-6
-        //     ));
+            assert!(utils::scalar_field_equality(
+                &partial_x_scalar_field,
+                &expected_result,
+                1e-6
+            ));
 
-        //     // Test the derivative of the scalar field x.
-        //     let mut scalar_field =
-        //         ScalarField1D::function_to_scalar_field(&grid, |x| x);
+            // Test the derivative of the scalar field x.
+            let scalar_field =
+                ScalarField1D::function_to_scalar_field(&grid, |x| x);
 
-        //     scalar_field.apply_scalar_bcs(boundary_conditions)
+            let scalar_field_with_bcs = scalar_field
+                .apply_scalar_bcs(&BoundaryConditions1D::DirichletScalar(
+                    0.0, 1.0,
+                ))
+                .unwrap();
 
-        //     let partial_x_scalar_field = scalar_field.partial_x().unwrap();
+            let partial_x_scalar_field =
+                scalar_field_with_bcs.partial_x().unwrap();
 
-        //     let expected_result =
-        //         ScalarField1D::new_constant_scalar_field(&grid, 1.0);
+            let expected_result =
+                ScalarField1D::new_constant_scalar_field(&grid, 1.0);
 
-        //     assert!(utils::scalar_field_equality(
-        //         &partial_x_scalar_field,
-        //         &expected_result,
-        //         1e-6
-        //     ));
+            assert!(utils::scalar_field_equality(
+                &partial_x_scalar_field,
+                &expected_result,
+                1e-6
+            ));
 
-        //     // Test the derivative of the scalar field x^2.
-        //     let scalar_field =
-        //         ScalarField1D::function_to_scalar_field(&grid, |x| x.powi(2));
-        //     let partial_x_scalar_field = scalar_field.partial_x().unwrap();
+            // Test the derivative of the scalar field x^2.
+            let scalar_field =
+                ScalarField1D::function_to_scalar_field(&grid, |x| x.powi(2));
+            let scalar_field_with_bcs = scalar_field
+                .apply_scalar_bcs(&BoundaryConditions1D::DirichletScalar(
+                    0.0, 1.0,
+                ))
+                .unwrap();
+            let partial_x_scalar_field =
+                scalar_field_with_bcs.partial_x().unwrap();
 
-        //     let expected_result =
-        //         ScalarField1D::function_to_scalar_field(&grid, |x| 2.0 * x);
+            let expected_result =
+                ScalarField1D::function_to_scalar_field(&grid, |x| 2.0 * x);
 
-        //     assert!(utils::scalar_field_equality(
-        //         &partial_x_scalar_field,
-        //         &expected_result,
-        //         1e-6
-        //     ));
-        // }
+            assert!(utils::scalar_field_equality(
+                &partial_x_scalar_field,
+                &expected_result,
+                1e-6
+            ));
+        }
+
+        #[test]
+        fn test_partial_x_periodic_bcs() {
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 100);
+
+            // Test the derivative of a constant scalar field.
+            let scalar_field =
+                ScalarField1D::new_constant_scalar_field(&grid, 1.0);
+            let scalar_field_with_bcs = scalar_field
+                .apply_scalar_bcs(&BoundaryConditions1D::Periodic)
+                .unwrap();
+            let partial_x_scalar_field =
+                scalar_field_with_bcs.partial_x().unwrap();
+
+            let expected_result =
+                ScalarField1D::new_constant_scalar_field(&grid, 0.0);
+
+            assert!(utils::scalar_field_equality(
+                &partial_x_scalar_field,
+                &expected_result,
+                1e-6
+            ));
+
+            // Test the derivative of the scalar field sin(2 * pi * x).
+            let scalar_field =
+                ScalarField1D::function_to_scalar_field(&grid, |x| {
+                    (2.0 * std::f64::consts::PI * x).sin()
+                });
+            let scalar_field_with_bcs = scalar_field
+                .apply_scalar_bcs(&BoundaryConditions1D::Periodic)
+                .unwrap();
+            let partial_x_scalar_field =
+                scalar_field_with_bcs.partial_x().unwrap();
+
+            let expected_result =
+                ScalarField1D::function_to_scalar_field(&grid, |x| {
+                    2.0 * std::f64::consts::PI
+                        * (2.0 * std::f64::consts::PI * x).cos()
+                });
+
+            assert!(utils::scalar_field_equality(
+                &partial_x_scalar_field,
+                &expected_result,
+                1e-2
+            ));
+        }
     }
 }
