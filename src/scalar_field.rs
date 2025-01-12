@@ -243,6 +243,8 @@ impl ScalarField1D {
 }
 
 // Boundary conditions.
+// TODO: Implement Neumann boundary conditions. Change check_scalar_bcs so
+// that it is safe to use.
 impl ScalarField1D {
     /// # Check boundary conditions are satisfied for a scalar field
     ///
@@ -618,8 +620,6 @@ impl ScalarField1D {
     }
 }
 
-// Todo: implement tests for the calculus operations once the code has been
-// updated.
 #[cfg(test)]
 mod tests {
     use super::*;

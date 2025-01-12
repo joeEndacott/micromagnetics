@@ -3,6 +3,9 @@ use crate::{
     scalar_field::ScalarField1D, utils,
 };
 
+// TODO: for arithmetic and vector operations, ensure that periodic BCs are
+// propagated correctly.
+
 /// # Vector field 1D
 ///
 /// ## Description
@@ -389,6 +392,8 @@ impl VectorField1D {
 }
 
 // Boundary conditions.
+// TODO: Implement Neumann BCs. Change check_vector_bcs so that it is safe to
+// use.
 impl VectorField1D {
     /// # Check boundary conditions are satisfied for a vector field
     ///
@@ -969,6 +974,346 @@ mod tests {
             assert_eq!(
                 result.err(),
                 Some("Grids of the two vector fields do not match")
+            );
+        }
+    }
+
+    mod boundary_conditions {
+        use super::*;
+
+        #[test]
+        fn test_check_vector_bcs_none() {
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
+            let vector_field = VectorField1D::new_constant_vector_field(
+                &grid,
+                [1.0, 0.0, 0.0],
+            );
+            let result = vector_field
+                .check_vector_bcs(&BoundaryConditions1D::None, 1e-6);
+            assert!(result.is_ok());
+        }
+
+        #[test]
+        fn test_check_vector_bcs_periodic() {
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
+            let mut field_values =
+                vec![[1.0, 0.0, 0.0]; grid.grid_points.len()];
+            field_values[0] = [2.0, 0.0, 0.0];
+            field_values[10] = [2.0, 0.0, 0.0];
+            let vector_field =
+                VectorField1D::new_vector_field(&grid, &field_values).unwrap();
+            let result = vector_field
+                .check_vector_bcs(&BoundaryConditions1D::Periodic, 1e-6);
+            assert!(result.is_ok());
+        }
+
+        #[test]
+        fn test_check_vector_bcs_periodic_error() {
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
+            let mut field_values =
+                vec![[1.0, 0.0, 0.0]; grid.grid_points.len()];
+            field_values[0] = [2.0, 0.0, 0.0];
+            field_values[10] = [3.0, 0.0, 0.0];
+            let vector_field =
+                VectorField1D::new_vector_field(&grid, &field_values).unwrap();
+            let result = vector_field
+                .check_vector_bcs(&BoundaryConditions1D::Periodic, 1e-6);
+            assert!(result.is_err());
+            assert_eq!(
+                result.err(),
+                Some(
+                    "Periodic BCs: Field values do not match at the boundaries"
+                )
+            );
+        }
+
+        #[test]
+        fn test_check_vector_bcs_dirichlet() {
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
+            let mut field_values =
+                vec![[1.0, 0.0, 0.0]; grid.grid_points.len()];
+            field_values[0] = [2.0, 0.0, 0.0];
+            field_values[10] = [3.0, 0.0, 0.0];
+            let vector_field =
+                VectorField1D::new_vector_field(&grid, &field_values).unwrap();
+            let result = vector_field.check_vector_bcs(
+                &BoundaryConditions1D::DirichletVector(
+                    [2.0, 0.0, 0.0],
+                    [3.0, 0.0, 0.0],
+                ),
+                1e-6,
+            );
+            assert!(result.is_ok());
+        }
+
+        #[test]
+        fn test_check_vector_bcs_dirichlet_error() {
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
+            let mut field_values =
+                vec![[1.0, 0.0, 0.0]; grid.grid_points.len()];
+            field_values[0] = [2.0, 0.0, 0.0];
+            field_values[10] = [3.0, 0.0, 0.0];
+            let vector_field =
+                VectorField1D::new_vector_field(&grid, &field_values).unwrap();
+            let result = vector_field.check_vector_bcs(
+                &BoundaryConditions1D::DirichletVector(
+                    [2.0, 0.0, 0.0],
+                    [4.0, 0.0, 0.0],
+                ),
+                1e-6,
+            );
+            assert!(result.is_err());
+            assert_eq!(
+            result.err(),
+            Some("Dirichlet BCs: Field values do not match specified boundary values")
+            );
+        }
+
+        #[test]
+        fn test_check_vector_bcs_neumann() {
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
+            let mut field_values =
+                vec![[1.0, 0.0, 0.0]; grid.grid_points.len()];
+            field_values[0] = [1.0, 0.0, 0.0];
+            field_values[10] = [1.0, 0.0, 0.0];
+            let vector_field =
+                VectorField1D::new_vector_field(&grid, &field_values).unwrap();
+            let result = vector_field.check_vector_bcs(
+                &BoundaryConditions1D::NeumannVector(
+                    [0.0, 0.0, 0.0],
+                    [0.0, 0.0, 0.0],
+                ),
+                1e-6,
+            );
+            assert!(result.is_ok());
+        }
+
+        // TODO: add test for Neumann BCs error when Neumann logic is
+        // implemented.
+
+        #[test]
+        fn test_check_vector_bcs_error_for_few_points() {
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 1);
+            let vector_field = VectorField1D::new_constant_vector_field(
+                &grid,
+                [1.0, 0.0, 0.0],
+            );
+            let result = vector_field
+                .check_vector_bcs(&BoundaryConditions1D::Periodic, 1e-6);
+            assert!(result.is_err());
+            assert_eq!(
+                result.err(),
+                Some("At least two grid points are required")
+            );
+        }
+
+        #[test]
+        fn test_check_vector_bcs_error_for_scalar_bcs() {
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
+            let vector_field = VectorField1D::new_constant_vector_field(
+                &grid,
+                [1.0, 0.0, 0.0],
+            );
+            let result = vector_field.check_vector_bcs(
+                &BoundaryConditions1D::DirichletScalar(1.0, 0.0),
+                1e-6,
+            );
+            assert!(result.is_err());
+            assert_eq!(
+                result.err(),
+                Some("Scalar BCs are not supported for vector fields")
+            );
+
+            let vector_field = VectorField1D::new_constant_vector_field(
+                &grid,
+                [1.0, 0.0, 0.0],
+            );
+            let result = vector_field.check_vector_bcs(
+                &BoundaryConditions1D::NeumannScalar(0.0, 0.0),
+                1e-6,
+            );
+            assert!(result.is_err());
+            assert_eq!(
+                result.err(),
+                Some("Scalar BCs are not supported for vector fields")
+            );
+        }
+
+        #[test]
+        fn test_apply_vector_bcs_none() {
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
+            let vector_field = VectorField1D::new_constant_vector_field(
+                &grid,
+                [1.0, 0.0, 0.0],
+            );
+            let result =
+                vector_field.apply_vector_bcs(&BoundaryConditions1D::None);
+            assert!(result.is_ok());
+            assert_eq!(
+                result.unwrap().boundary_conditions,
+                BoundaryConditions1D::None
+            );
+        }
+
+        #[test]
+        fn test_apply_vector_bcs_periodic() {
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
+            let mut field_values =
+                vec![[1.0, 0.0, 0.0]; grid.grid_points.len()];
+            field_values[0] = [2.0, 0.0, 0.0];
+            field_values[10] = [2.0, 0.0, 0.0];
+            let vector_field =
+                VectorField1D::new_vector_field(&grid, &field_values).unwrap();
+            let result =
+                vector_field.apply_vector_bcs(&BoundaryConditions1D::Periodic);
+            assert!(result.is_ok());
+            let updated_vector_field = result.unwrap();
+            assert_eq!(
+                updated_vector_field.boundary_conditions,
+                BoundaryConditions1D::Periodic
+            );
+            assert_eq!(
+                updated_vector_field.field_values[0],
+                updated_vector_field.field_values[10]
+            );
+        }
+
+        #[test]
+        fn test_apply_vector_bcs_periodic_error() {
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
+            let mut field_values =
+                vec![[1.0, 0.0, 0.0]; grid.grid_points.len()];
+            field_values[0] = [2.0, 0.0, 0.0];
+            field_values[10] = [3.0, 0.0, 0.0];
+            let vector_field =
+                VectorField1D::new_vector_field(&grid, &field_values).unwrap();
+            let result =
+                vector_field.apply_vector_bcs(&BoundaryConditions1D::Periodic);
+            assert!(result.is_err());
+            assert_eq!(
+                result.err(),
+                Some(
+                    "Periodic BCs: Field values do not match at the boundaries"
+                )
+            );
+        }
+
+        #[test]
+        fn test_apply_vector_bcs_dirichlet() {
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
+            let vector_field = VectorField1D::new_constant_vector_field(
+                &grid,
+                [1.0, 0.0, 0.0],
+            );
+            let result = vector_field.apply_vector_bcs(
+                &BoundaryConditions1D::DirichletVector(
+                    [1.0, 0.0, 0.0],
+                    [1.0, 0.0, 0.0],
+                ),
+            );
+            assert!(result.is_ok());
+            let updated_vector_field = result.unwrap();
+            assert_eq!(
+                updated_vector_field.boundary_conditions,
+                BoundaryConditions1D::DirichletVector(
+                    [1.0, 0.0, 0.0],
+                    [1.0, 0.0, 0.0]
+                )
+            );
+            assert_eq!(updated_vector_field.field_values[0], [1.0, 0.0, 0.0]);
+            assert_eq!(updated_vector_field.field_values[10], [1.0, 0.0, 0.0]);
+        }
+
+        #[test]
+        fn test_apply_vector_bcs_dirichlet_error() {
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
+            let vector_field = VectorField1D::new_constant_vector_field(
+                &grid,
+                [1.0, 0.0, 0.0],
+            );
+            let result = vector_field.apply_vector_bcs(
+                &BoundaryConditions1D::DirichletVector(
+                    [2.0, 0.0, 0.0],
+                    [4.0, 0.0, 0.0],
+                ),
+            );
+            assert!(result.is_err());
+            assert_eq!(
+            result.err(),
+            Some("Dirichlet BCs: Field values do not match specified boundary values")
+            );
+        }
+
+        #[test]
+        fn test_apply_vector_bcs_neumann() {
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
+            let vector_field = VectorField1D::new_constant_vector_field(
+                &grid,
+                [1.0, 0.0, 0.0],
+            );
+            let result = vector_field.apply_vector_bcs(
+                &BoundaryConditions1D::NeumannVector(
+                    [0.0, 0.0, 0.0],
+                    [0.0, 0.0, 0.0],
+                ),
+            );
+            assert!(result.is_ok());
+            let updated_vector_field = result.unwrap();
+            assert_eq!(
+                updated_vector_field.boundary_conditions,
+                BoundaryConditions1D::NeumannVector(
+                    [0.0, 0.0, 0.0],
+                    [0.0, 0.0, 0.0]
+                )
+            );
+        }
+
+        // TODO: add test for Neumann BCs error when Neumann logic is
+        // implemented.
+
+        #[test]
+        fn test_apply_vector_bcs_error_for_few_points() {
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 1);
+            let vector_field = VectorField1D::new_constant_vector_field(
+                &grid,
+                [1.0, 0.0, 0.0],
+            );
+            let result =
+                vector_field.apply_vector_bcs(&BoundaryConditions1D::Periodic);
+            assert!(result.is_err());
+            assert_eq!(
+                result.err(),
+                Some("At least two grid points are required")
+            );
+        }
+
+        #[test]
+        fn test_apply_vector_bcs_error_for_scalar_bcs() {
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
+            let vector_field = VectorField1D::new_constant_vector_field(
+                &grid,
+                [1.0, 0.0, 0.0],
+            );
+            let result = vector_field.apply_vector_bcs(
+                &BoundaryConditions1D::DirichletScalar(1.0, 0.0),
+            );
+            assert!(result.is_err());
+            assert_eq!(
+                result.err(),
+                Some("Scalar BCs are not supported for vector fields")
+            );
+
+            let vector_field = VectorField1D::new_constant_vector_field(
+                &grid,
+                [1.0, 0.0, 0.0],
+            );
+            let result = vector_field.apply_vector_bcs(
+                &BoundaryConditions1D::NeumannScalar(0.0, 0.0),
+            );
+            assert!(result.is_err());
+            assert_eq!(
+                result.err(),
+                Some("Scalar BCs are not supported for vector fields")
             );
         }
     }
