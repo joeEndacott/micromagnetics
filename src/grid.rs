@@ -63,6 +63,40 @@ impl Grid {
     }
 }
 
+// Methods.
+impl Grid {
+    /// # Num points
+    ///
+    /// ## Description
+    /// Returns the number of grid points given a `Grid` instance.
+    ///
+    pub fn num_points(&self) -> usize {
+        match self {
+            Grid::Uniform(_, _, num_points) => *num_points,
+            Grid::NonUniform(points) => points.len(),
+        }
+    }
+
+    /// # Grid points
+    ///
+    /// ## Description
+    /// Returns the grid points as a vector of f64 values given an instance of
+    /// `Grid`.
+    ///
+    pub fn grid_points(&self) -> Vec<f64> {
+        match self {
+            Grid::Uniform(start_point, end_point, num_points) => {
+                let step = (end_point - start_point) / (*num_points as f64);
+                (0..*num_points)
+                    .map(|i| start_point + i as f64 * step)
+                    .collect()
+            }
+            Grid::NonUniform(points) => points.clone(),
+        }
+    }
+}
+
+// Tests.
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -139,6 +173,44 @@ mod tests {
             assert!(
                 matches!(grid, Err(GridError::ZeroPoints)),
                 "new_uniform_grid failed to handle zero points."
+            );
+        }
+    }
+
+    mod methods_tests {
+        use super::*;
+
+        #[test]
+        fn test_num_points() {
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 11).unwrap();
+            assert_eq!(
+                grid.num_points(),
+                11,
+                "num_points failed for a uniform grid."
+            );
+
+            let grid = Grid::NonUniform(vec![0.0, 0.1, 0.2, 0.3, 0.4]);
+            assert_eq!(
+                grid.num_points(),
+                5,
+                "num_points failed for a non-uniform grid."
+            );
+        }
+
+        #[test]
+        fn test_grid_points() {
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 11).unwrap();
+            assert_eq!(
+                grid.grid_points(),
+                vec![0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+                "grid_points failed for a uniform grid."
+            );
+
+            let grid = Grid::NonUniform(vec![0.0, 0.1, 0.2, 0.3, 0.4]);
+            assert_eq!(
+                grid.grid_points(),
+                vec![0.0, 0.1, 0.2, 0.3, 0.4],
+                "grid_points failed for a non-uniform grid."
             );
         }
     }

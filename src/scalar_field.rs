@@ -36,11 +36,12 @@ impl ScalarField1D {
         grid: &Grid,
         field_values: &Vec<f64>,
     ) -> Result<ScalarField1D, &'static str> {
-        if field_values.len() != grid.grid_points.len() {
+        if field_values.len() != grid.num_points() {
             return Err(
                 "Number of field values does not match number of grid points",
             );
         }
+
         Ok(ScalarField1D {
             grid: grid.clone(),
             field_values: field_values.clone(),
@@ -64,7 +65,7 @@ impl ScalarField1D {
     {
         // Creates a vector containing the value of func at each grid point.
         let function_values: Vec<f64> =
-            grid.grid_points.iter().map(|&x| func(x)).collect();
+            grid.grid_points().iter().map(|&x| func(x)).collect();
 
         ScalarField1D {
             grid: grid.clone(),
@@ -84,7 +85,7 @@ impl ScalarField1D {
         grid: &Grid,
         field_value: f64,
     ) -> ScalarField1D {
-        let field_values = vec![field_value; grid.grid_points.len()];
+        let field_values = vec![field_value; grid.grid_points().len()];
         ScalarField1D {
             grid: grid.clone(),
             field_values,
@@ -442,7 +443,7 @@ impl ScalarField1D {
     fn central_difference_derivative_none_or_dirichlet_bcs(
         self: &Self,
     ) -> Result<Self, &'static str> {
-        let num_points = self.grid.grid_points.len();
+        let num_points = self.grid.grid_points().len();
         let mut partial_x_values = Vec::with_capacity(num_points);
 
         match self.boundary_conditions {
@@ -450,9 +451,9 @@ impl ScalarField1D {
                 // Calculates the derivative at the starting grid point using a
                 // quadratic interpolation.
                 let points = [
-                    self.grid.grid_points[0],
-                    self.grid.grid_points[1],
-                    self.grid.grid_points[2],
+                    self.grid.grid_points()[0],
+                    self.grid.grid_points()[1],
+                    self.grid.grid_points()[2],
                 ];
                 let function_values = [
                     self.field_values[0],
@@ -466,7 +467,7 @@ impl ScalarField1D {
                     )?;
                 partial_x_values.push(quadratic_interpolation::quadratic_derivative(
                     coefficients,
-                    self.grid.grid_points[0],
+                    self.grid.grid_points()[0],
                 ));
 
                 // Calculates the derivative at each interior grid point using
@@ -474,17 +475,17 @@ impl ScalarField1D {
                 for i in 1..(num_points - 1) {
                     partial_x_values.push(
                     (self.field_values[i + 1] - self.field_values[i - 1])
-                        / (self.grid.grid_points[i + 1]
-                        - self.grid.grid_points[i - 1]),
+                        / (self.grid.grid_points()[i + 1]
+                        - self.grid.grid_points()[i - 1]),
                     );
                 }
 
                 // Calculates the derivative at the final grid point using a
                 // quadratic interpolation.
                 let points = [
-                    self.grid.grid_points[num_points - 3],
-                    self.grid.grid_points[num_points - 2],
-                    self.grid.grid_points[num_points - 1],
+                    self.grid.grid_points()[num_points - 3],
+                    self.grid.grid_points()[num_points - 2],
+                    self.grid.grid_points()[num_points - 1],
                 ];
                 let function_values = [
                     self.field_values[num_points - 3],
@@ -498,7 +499,7 @@ impl ScalarField1D {
                     )?;
                 partial_x_values.push(quadratic_interpolation::quadratic_derivative(
                     coefficients,
-                    self.grid.grid_points[num_points - 1],
+                    self.grid.grid_points()[num_points - 1],
                 ));
             }
             _ => return Err("Boundary conditions must be None or DirichletScalar for this method"),
@@ -530,16 +531,17 @@ impl ScalarField1D {
     fn central_difference_derivative_periodic_bcs(
         self: &Self,
     ) -> Result<Self, &'static str> {
-        let num_points = self.grid.grid_points.len();
+        let num_points = self.grid.grid_points().len();
         let mut partial_x_values = Vec::with_capacity(num_points);
 
         if let BoundaryConditions1D::Periodic = self.boundary_conditions {
             // Left boundary
             partial_x_values.push(
                 (self.field_values[1] - self.field_values[num_points - 2])
-                    / ((self.grid.grid_points[1] - self.grid.grid_points[0])
-                        + (self.grid.grid_points[num_points - 1]
-                            - self.grid.grid_points[num_points - 2])),
+                    / ((self.grid.grid_points()[1]
+                        - self.grid.grid_points()[0])
+                        + (self.grid.grid_points()[num_points - 1]
+                            - self.grid.grid_points()[num_points - 2])),
             );
 
             // Calculates the derivative at each interior grid point using
@@ -547,8 +549,8 @@ impl ScalarField1D {
             for i in 1..(num_points - 1) {
                 partial_x_values.push(
                     (self.field_values[i + 1] - self.field_values[i - 1])
-                        / (self.grid.grid_points[i + 1]
-                            - self.grid.grid_points[i - 1]),
+                        / (self.grid.grid_points()[i + 1]
+                            - self.grid.grid_points()[i - 1]),
                 );
             }
 
@@ -584,7 +586,7 @@ impl ScalarField1D {
     fn central_difference_derivative_neumann_bcs(
         self: &Self,
     ) -> Result<Self, &'static str> {
-        let num_points = self.grid.grid_points.len();
+        let num_points = self.grid.grid_points().len();
         let mut partial_x_values = Vec::with_capacity(num_points);
 
         if let BoundaryConditions1D::NeumannScalar(
@@ -599,8 +601,8 @@ impl ScalarField1D {
             for i in 1..(num_points - 1) {
                 partial_x_values.push(
                     (self.field_values[i + 1] - self.field_values[i - 1])
-                        / (self.grid.grid_points[i + 1]
-                            - self.grid.grid_points[i - 1]),
+                        / (self.grid.grid_points()[i + 1]
+                            - self.grid.grid_points()[i - 1]),
                 );
             }
 
@@ -631,7 +633,7 @@ mod tests {
 
         #[test]
         fn test_debug() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 5).unwrap();
             let field_values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
             let scalar_field =
                 ScalarField1D::new_scalar_field(&grid, &field_values).unwrap();
@@ -644,7 +646,7 @@ mod tests {
 
         #[test]
         fn test_clone() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 5).unwrap();
             let field_values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
             let scalar_field =
                 ScalarField1D::new_scalar_field(&grid, &field_values).unwrap();
@@ -654,7 +656,7 @@ mod tests {
 
         #[test]
         fn test_partial_eq() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 5).unwrap();
             let field_values1 = vec![1.0, 2.0, 3.0, 4.0, 5.0];
             let scalar_field1 =
                 ScalarField1D::new_scalar_field(&grid, &field_values1).unwrap();
@@ -684,7 +686,7 @@ mod tests {
 
         #[test]
         fn test_new_scalar_field() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 5).unwrap();
             let field_values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
             let scalar_field =
                 ScalarField1D::new_scalar_field(&grid, &field_values).unwrap();
@@ -698,7 +700,7 @@ mod tests {
 
         #[test]
         fn test_new_scalar_field_error() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 5).unwrap();
             let field_values = vec![1.0, 2.0, 3.0];
             let result = ScalarField1D::new_scalar_field(&grid, &field_values);
             assert!(result.is_err());
@@ -710,7 +712,7 @@ mod tests {
 
         #[test]
         fn test_function_to_scalar_field() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 6);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 6).unwrap();
             let scalar_field =
                 ScalarField1D::function_to_scalar_field(&grid, |x| x);
 
@@ -728,14 +730,14 @@ mod tests {
 
         #[test]
         fn test_new_constant_scalar_field() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 5).unwrap();
             let field_value = 5.0;
             let scalar_field =
                 ScalarField1D::new_constant_scalar_field(&grid, field_value);
             assert_eq!(scalar_field.grid, grid);
             assert_eq!(
                 scalar_field.field_values,
-                vec![field_value; grid.grid_points.len()]
+                vec![field_value; grid.grid_points().len()]
             );
         }
     }
@@ -745,7 +747,7 @@ mod tests {
 
         #[test]
         fn test_add() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 5).unwrap();
             let field_values1 = vec![1.0, 2.0, 3.0, 4.0, 5.0];
             let field_values2 = vec![4.0, 3.0, 2.0, 1.0, 0.0];
             let scalar_field1 =
@@ -758,8 +760,8 @@ mod tests {
 
         #[test]
         fn test_add_scalar_fields_with_mismatched_grids() {
-            let grid1 = Grid::new_uniform_grid(0.0, 1.0, 5);
-            let grid2 = Grid::new_uniform_grid(0.0, 2.0, 5);
+            let grid1 = Grid::new_uniform_grid(0.0, 1.0, 5).unwrap();
+            let grid2 = Grid::new_uniform_grid(0.0, 2.0, 5).unwrap();
             let field_values1 = vec![1.0, 2.0, 3.0, 4.0, 5.0];
             let field_values2 = vec![4.0, 3.0, 2.0, 1.0, 0.0];
             let scalar_field1 =
@@ -775,7 +777,7 @@ mod tests {
 
         #[test]
         fn test_subtract() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 5).unwrap();
             let field_values1 = vec![1.0, 2.0, 3.0, 4.0, 5.0];
             let field_values2 = vec![4.0, 3.0, 2.0, 1.0, 0.0];
             let scalar_field1 =
@@ -788,8 +790,8 @@ mod tests {
 
         #[test]
         fn test_subtract_scalar_fields_with_mismatched_grids() {
-            let grid1 = Grid::new_uniform_grid(0.0, 1.0, 5);
-            let grid2 = Grid::new_uniform_grid(0.0, 2.0, 5);
+            let grid1 = Grid::new_uniform_grid(0.0, 1.0, 5).unwrap();
+            let grid2 = Grid::new_uniform_grid(0.0, 2.0, 5).unwrap();
             let field_values1 = vec![1.0, 2.0, 3.0, 4.0, 5.0];
             let field_values2 = vec![4.0, 3.0, 2.0, 1.0, 0.0];
             let scalar_field1 =
@@ -805,7 +807,7 @@ mod tests {
 
         #[test]
         fn test_multiply() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 5).unwrap();
             let field_values1 = vec![1.0, 2.0, 3.0, 4.0, 5.0];
             let field_values2 = vec![4.0, 3.0, 2.0, 1.0, 0.0];
             let scalar_field1 =
@@ -818,8 +820,8 @@ mod tests {
 
         #[test]
         fn test_multiply_scalar_fields_with_mismatched_grids() {
-            let grid1 = Grid::new_uniform_grid(0.0, 1.0, 5);
-            let grid2 = Grid::new_uniform_grid(0.0, 2.0, 5);
+            let grid1 = Grid::new_uniform_grid(0.0, 1.0, 5).unwrap();
+            let grid2 = Grid::new_uniform_grid(0.0, 2.0, 5).unwrap();
             let field_values1 = vec![1.0, 2.0, 3.0, 4.0, 5.0];
             let field_values2 = vec![4.0, 3.0, 2.0, 1.0, 0.0];
             let scalar_field1 =
@@ -835,7 +837,7 @@ mod tests {
 
         #[test]
         fn test_divide() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 5).unwrap();
             let field_values1 = vec![4.0, 9.0, 16.0, 25.0, 36.0];
             let field_values2 = vec![2.0, 3.0, 4.0, 5.0, 6.0];
             let scalar_field1 =
@@ -848,7 +850,7 @@ mod tests {
 
         #[test]
         fn test_divide_by_zero_error() {
-            let grid1 = Grid::new_uniform_grid(0.0, 1.0, 5);
+            let grid1 = Grid::new_uniform_grid(0.0, 1.0, 5).unwrap();
             let field_values1 = vec![4.0, 9.0, 16.0, 25.0, 36.0];
             let field_values2 = vec![2.0, 3.0, 4.0, 5.0, 0.0];
             let scalar_field1 =
@@ -864,8 +866,8 @@ mod tests {
 
         #[test]
         fn test_divide_scalar_fields_with_mismatched_grids() {
-            let grid1 = Grid::new_uniform_grid(0.0, 1.0, 5);
-            let grid2 = Grid::new_uniform_grid(0.0, 2.0, 5);
+            let grid1 = Grid::new_uniform_grid(0.0, 1.0, 5).unwrap();
+            let grid2 = Grid::new_uniform_grid(0.0, 2.0, 5).unwrap();
             let field_values1 = vec![4.0, 9.0, 16.0, 25.0, 36.0];
             let scalar_field1 =
                 ScalarField1D::new_scalar_field(&grid1, &field_values1)
@@ -882,7 +884,7 @@ mod tests {
 
         #[test]
         fn test_scale() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 5).unwrap();
             let field_values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
             let scalar_field =
                 ScalarField1D::new_scalar_field(&grid, &field_values).unwrap();
@@ -896,7 +898,7 @@ mod tests {
 
         #[test]
         fn test_check_scalar_bcs_none() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 5).unwrap();
             let field_values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
             let scalar_field =
                 ScalarField1D::new_scalar_field(&grid, &field_values).unwrap();
@@ -908,7 +910,7 @@ mod tests {
 
         #[test]
         fn test_check_scalar_bcs_periodic() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 5).unwrap();
             let field_values = vec![1.0, 2.0, 3.0, 4.0, 1.0];
             let scalar_field =
                 ScalarField1D::new_scalar_field(&grid, &field_values).unwrap();
@@ -920,7 +922,7 @@ mod tests {
 
         #[test]
         fn test_check_scalar_bcs_periodic_error() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 5).unwrap();
             let field_values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
             let scalar_field =
                 ScalarField1D::new_scalar_field(&grid, &field_values).unwrap();
@@ -932,7 +934,7 @@ mod tests {
 
         #[test]
         fn test_check_scalar_bcs_dirichlet() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 5).unwrap();
             let field_values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
             let scalar_field =
                 ScalarField1D::new_scalar_field(&grid, &field_values).unwrap();
@@ -945,7 +947,7 @@ mod tests {
 
         #[test]
         fn test_check_scalar_bcs_dirichlet_error() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 5).unwrap();
             let field_values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
             let scalar_field =
                 ScalarField1D::new_scalar_field(&grid, &field_values).unwrap();
@@ -958,7 +960,7 @@ mod tests {
 
         #[test]
         fn test_check_scalar_bcs_neumann() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 6);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 6).unwrap();
             let field_values = vec![0.0, 0.2, 0.4, 0.6, 0.8, 1.0];
             let scalar_field =
                 ScalarField1D::new_scalar_field(&grid, &field_values).unwrap();
@@ -974,7 +976,7 @@ mod tests {
 
         #[test]
         fn test_check_scalar_bcs_too_few_points_error() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 1);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 1).unwrap();
             let field_values = vec![1.0];
             let scalar_field =
                 ScalarField1D::new_scalar_field(&grid, &field_values).unwrap();
@@ -1009,7 +1011,7 @@ mod tests {
 
         #[test]
         fn test_check_scalar_bcs_vector_error() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 5).unwrap();
             let field_values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
             let scalar_field =
                 ScalarField1D::new_scalar_field(&grid, &field_values).unwrap();
@@ -1033,7 +1035,7 @@ mod tests {
 
         #[test]
         fn test_apply_scalar_bcs_none() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 5).unwrap();
             let field_values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
             let scalar_field =
                 ScalarField1D::new_scalar_field(&grid, &field_values).unwrap();
@@ -1049,7 +1051,7 @@ mod tests {
 
         #[test]
         fn test_apply_scalar_bcs_periodic() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 5).unwrap();
             let field_values = vec![1.0, 2.0, 3.0, 4.0, 1.0];
             let scalar_field =
                 ScalarField1D::new_scalar_field(&grid, &field_values).unwrap();
@@ -1071,7 +1073,7 @@ mod tests {
 
         #[test]
         fn test_apply_scalar_bcs_periodic_within_tolerance() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 5).unwrap();
             let field_values = vec![1.0, 2.0, 3.0, 4.0, 1.000001];
             let scalar_field =
                 ScalarField1D::new_scalar_field(&grid, &field_values).unwrap();
@@ -1091,7 +1093,7 @@ mod tests {
 
         #[test]
         fn test_apply_scalar_bcs_periodic_error() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 5).unwrap();
             let field_values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
             let scalar_field =
                 ScalarField1D::new_scalar_field(&grid, &field_values).unwrap();
@@ -1103,7 +1105,7 @@ mod tests {
 
         #[test]
         fn test_apply_scalar_bcs_dirichlet() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 5).unwrap();
             let field_values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
             let scalar_field =
                 ScalarField1D::new_scalar_field(&grid, &field_values).unwrap();
@@ -1122,7 +1124,7 @@ mod tests {
 
         #[test]
         fn test_apply_scalar_bcs_dirichlet_within_tolerance() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 5).unwrap();
             let field_values = vec![1.0000001, 2.0, 3.0, 4.0, 5.0000001];
             let scalar_field =
                 ScalarField1D::new_scalar_field(&grid, &field_values).unwrap();
@@ -1141,7 +1143,7 @@ mod tests {
 
         #[test]
         fn test_apply_scalar_bcs_dirichlet_error() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 5).unwrap();
             let field_values = vec![0.0, 2.0, 3.0, 4.0, 0.0];
             let scalar_field =
                 ScalarField1D::new_scalar_field(&grid, &field_values).unwrap();
@@ -1154,7 +1156,7 @@ mod tests {
 
         #[test]
         fn test_apply_scalar_bcs_neumann() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 5).unwrap();
             let field_values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
             let scalar_field =
                 ScalarField1D::new_scalar_field(&grid, &field_values).unwrap();
@@ -1174,7 +1176,7 @@ mod tests {
 
         #[test]
         fn test_apply_scalar_bcs_vector_error() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 5);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 5).unwrap();
             let field_values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
             let scalar_field =
                 ScalarField1D::new_scalar_field(&grid, &field_values).unwrap();
@@ -1203,7 +1205,7 @@ mod tests {
 
         #[test]
         fn test_partial_x_none_bcs() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 100);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 100).unwrap();
 
             // Test the derivative of a constant scalar field.
             let scalar_field =
@@ -1250,7 +1252,7 @@ mod tests {
 
         #[test]
         fn test_partial_x_dirichlet_bcs() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 100);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 100).unwrap();
 
             // Test the derivative of a constant scalar field.
             let scalar_field =
@@ -1320,7 +1322,7 @@ mod tests {
 
         #[test]
         fn test_partial_x_periodic_bcs() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 100);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 100).unwrap();
 
             // Test the derivative of a constant scalar field.
             let scalar_field =
@@ -1366,7 +1368,7 @@ mod tests {
 
         #[test]
         fn test_partial_x_neumann_bcs() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 100);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 100).unwrap();
 
             // Test the derivative of a constant scalar field.
             let scalar_field =
@@ -1431,7 +1433,7 @@ mod tests {
 
         #[test]
         fn test_partial_x_error_unsupported_boundary_conditions() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 100);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 100).unwrap();
             let scalar_field =
                 ScalarField1D::new_constant_scalar_field(&grid, 1.0);
 
