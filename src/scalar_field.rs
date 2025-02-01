@@ -469,7 +469,7 @@ impl ScalarField1D {
                     self.grid.grid_points[0],
                 ));
 
-                // Calculates the derivative at each interior grid point using 
+                // Calculates the derivative at each interior grid point using
                 // the central difference scheme.
                 for i in 1..(num_points - 1) {
                     partial_x_values.push(
@@ -479,7 +479,7 @@ impl ScalarField1D {
                     );
                 }
 
-                // Calculates the derivative at the final grid point using a 
+                // Calculates the derivative at the final grid point using a
                 // quadratic interpolation.
                 let points = [
                     self.grid.grid_points[num_points - 3],
