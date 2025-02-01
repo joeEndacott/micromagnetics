@@ -20,7 +20,7 @@ pub enum Grid {
 #[derive(Debug)]
 pub enum GridError {
     InvalidRange,
-    ZeroPoints,
+    InvalidNumPoints,
 }
 
 impl fmt::Display for GridError {
@@ -29,8 +29,8 @@ impl fmt::Display for GridError {
             GridError::InvalidRange => {
                 write!(f, "start_point must be less than end_point")
             }
-            GridError::ZeroPoints => {
-                write!(f, "num_points must be greater than 0")
+            GridError::InvalidNumPoints => {
+                write!(f, "num_points must be greater than 1")
             }
         }
     }
@@ -50,13 +50,13 @@ impl Grid {
         num_points: usize,
     ) -> Result<Self, GridError> {
         // Error handling for invalid range.
-        if end_point > start_point {
+        if start_point > end_point {
             return Err(GridError::InvalidRange);
         }
 
         // Error handling for zero points.
-        if num_points <= 0 {
-            return Err(GridError::ZeroPoints);
+        if num_points <= 1 {
+            return Err(GridError::InvalidNumPoints);
         }
 
         Ok(Grid::Uniform(start_point, end_point, num_points))
@@ -86,7 +86,8 @@ impl Grid {
     pub fn grid_points(&self) -> Vec<f64> {
         match self {
             Grid::Uniform(start_point, end_point, num_points) => {
-                let step = (end_point - start_point) / (*num_points as f64);
+                let step =
+                    (end_point - start_point) / (*num_points as f64 - 1.0);
                 (0..*num_points)
                     .map(|i| start_point + i as f64 * step)
                     .collect()
@@ -100,6 +101,7 @@ impl Grid {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::utils;
 
     mod grid_traits_tests {
 
@@ -171,7 +173,7 @@ mod tests {
             // Test with zero points.
             let grid = Grid::new_uniform_grid(0.0, 1.0, 0);
             assert!(
-                matches!(grid, Err(GridError::ZeroPoints)),
+                matches!(grid, Err(GridError::InvalidNumPoints)),
                 "new_uniform_grid failed to handle zero points."
             );
         }
@@ -200,9 +202,14 @@ mod tests {
         #[test]
         fn test_grid_points() {
             let grid = Grid::new_uniform_grid(0.0, 1.0, 11).unwrap();
-            assert_eq!(
-                grid.grid_points(),
-                vec![0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+            assert!(
+                utils::vector_equality(
+                    &grid.grid_points(),
+                    &vec![
+                        0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0
+                    ],
+                    1e-6
+                ),
                 "grid_points failed for a uniform grid."
             );
 

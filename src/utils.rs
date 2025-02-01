@@ -13,9 +13,26 @@ pub fn scalar_equality(num_1: f64, num_2: f64, tolerance: f64) -> bool {
 /// # Test vector equality with tolerance
 ///
 /// ## Description
+/// Tests if two vectors of arbitrary length are equal to within a given
+/// tolerance.
+///
+pub fn vector_equality(vec_1: &[f64], vec_2: &[f64], tolerance: f64) -> bool {
+    if vec_1.len() != vec_2.len() {
+        return false;
+    }
+
+    vec_1
+        .iter()
+        .zip(vec_2.iter())
+        .all(|(v1, v2)| scalar_equality(*v1, *v2, tolerance))
+}
+
+/// # Test three vector equality with tolerance
+///
+/// ## Description
 /// Tests if two 3-vectors are equal to within a given tolerance.
 ///
-pub fn vector_equality(
+pub fn three_vector_equality(
     vec_1: [f64; 3],
     vec_2: [f64; 3],
     tolerance: f64,
@@ -70,7 +87,7 @@ pub fn vector_field_equality(
         .field_values
         .iter()
         .zip(vector_field_2.field_values.iter())
-        .all(|(v1, v2)| vector_equality(*v1, *v2, tolerance))
+        .all(|(v1, v2)| three_vector_equality(*v1, *v2, tolerance))
 }
 
 #[cfg(test)]
@@ -90,12 +107,16 @@ mod tests {
 
     #[test]
     fn test_vector_equality_within_tolerance() {
-        assert!(vector_equality(
+        assert!(three_vector_equality(
             [1.0, 2.0, 3.0],
             [1.0001, 2.0001, 2.9999],
             0.001
         ));
-        assert!(!vector_equality([1.0, 2.0, 3.0], [1.01, 2.01, 2.99], 0.001));
+        assert!(!three_vector_equality(
+            [1.0, 2.0, 3.0],
+            [1.01, 2.01, 2.99],
+            0.001
+        ));
     }
 
     // #[test]

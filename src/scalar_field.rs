@@ -976,7 +976,7 @@ mod tests {
 
         #[test]
         fn test_check_scalar_bcs_too_few_points_error() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 1).unwrap();
+            let grid = Grid::NonUniform(vec![0.0]);
             let field_values = vec![1.0];
             let scalar_field =
                 ScalarField1D::new_scalar_field(&grid, &field_values).unwrap();

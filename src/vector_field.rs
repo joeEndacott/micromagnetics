@@ -424,7 +424,7 @@ impl VectorField1D {
         match boundary_conditions {
             BoundaryConditions1D::None => Ok(()),
             BoundaryConditions1D::Periodic => {
-                if !utils::vector_equality(
+                if !utils::three_vector_equality(
                     self.field_values[0],
                     self.field_values[num_points - 1],
                     tolerance,
@@ -437,11 +437,11 @@ impl VectorField1D {
                 left_boundary_value,
                 right_boundary_value,
             ) => {
-                if !utils::vector_equality(
+                if !utils::three_vector_equality(
                     self.field_values[0],
                     *left_boundary_value,
                     tolerance,
-                ) || !utils::vector_equality(
+                ) || !utils::three_vector_equality(
                     self.field_values[num_points - 1],
                     *right_boundary_value,
                     tolerance,
@@ -1111,7 +1111,7 @@ mod tests {
 
         #[test]
         fn test_check_vector_bcs_error_for_few_points() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 1).unwrap();
+            let grid = Grid::NonUniform(vec![0.0]);
             let vector_field = VectorField1D::new_constant_vector_field(
                 &grid,
                 [1.0, 0.0, 0.0],
@@ -1291,7 +1291,7 @@ mod tests {
 
         #[test]
         fn test_apply_vector_bcs_error_for_few_points() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 1).unwrap();
+            let grid = Grid::NonUniform(vec![0.0]);
             let vector_field = VectorField1D::new_constant_vector_field(
                 &grid,
                 [1.0, 0.0, 0.0],
