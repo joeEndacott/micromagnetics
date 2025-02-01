@@ -41,7 +41,7 @@ impl VectorField1D {
         grid: &Grid,
         field_values: &Vec<[f64; 3]>,
     ) -> Result<VectorField1D, &'static str> {
-        if grid.grid_points.len() != field_values.len() {
+        if grid.grid_points().len() != field_values.len() {
             return Err(
                 "Number of grid points does not match number of field values",
             );
@@ -69,7 +69,7 @@ impl VectorField1D {
     {
         // Creates a vector containing the value of func at each grid point.
         let function_values: Vec<[f64; 3]> =
-            grid.grid_points.iter().map(|&x| func(x)).collect();
+            grid.grid_points().iter().map(|&x| func(x)).collect();
 
         VectorField1D {
             grid: grid.clone(),
@@ -90,7 +90,7 @@ impl VectorField1D {
         grid: &Grid,
         field_value: [f64; 3],
     ) -> VectorField1D {
-        let field_values = vec![field_value; grid.grid_points.len()];
+        let field_values = vec![field_value; grid.grid_points().len()];
 
         VectorField1D {
             grid: grid.clone(),
@@ -110,7 +110,7 @@ impl VectorField1D {
     pub fn vector_field_to_scalar_fields(
         self: &Self,
     ) -> Result<[ScalarField1D; 3], &'static str> {
-        if self.grid.grid_points.len() != self.field_values.len() {
+        if self.grid.grid_points().len() != self.field_values.len() {
             return Err(
                 "Number of grid points does not match number of field values",
             );
@@ -653,8 +653,8 @@ mod tests {
 
         #[test]
         fn test_vector_field_1d_debug() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
-            let field_values = vec![[1.0, 0.0, 0.0]; grid.grid_points.len()];
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 11).unwrap();
+            let field_values = vec![[1.0, 0.0, 0.0]; grid.grid_points().len()];
             let vector_field =
                 VectorField1D::new_vector_field(&grid, &field_values);
             let debug_str = format!("{:?}", vector_field);
@@ -665,8 +665,8 @@ mod tests {
 
         #[test]
         fn test_vector_field_1d_clone() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
-            let field_values = vec![[1.0, 0.0, 0.0]; grid.grid_points.len()];
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 11).unwrap();
+            let field_values = vec![[1.0, 0.0, 0.0]; grid.grid_points().len()];
             let vector_field =
                 VectorField1D::new_vector_field(&grid, &field_values).unwrap();
             let cloned_vector_field = vector_field.clone();
@@ -675,9 +675,11 @@ mod tests {
 
         #[test]
         fn test_vector_field_1d_partial_eq() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
-            let field_values_1 = vec![[1.0, 0.0, 0.0]; grid.grid_points.len()];
-            let field_values_2 = vec![[0.0, 1.0, 0.0]; grid.grid_points.len()];
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 11).unwrap();
+            let field_values_1 =
+                vec![[1.0, 0.0, 0.0]; grid.grid_points().len()];
+            let field_values_2 =
+                vec![[0.0, 1.0, 0.0]; grid.grid_points().len()];
             let vector_field_1 =
                 VectorField1D::new_vector_field(&grid, &field_values_1);
             let vector_field_2 =
@@ -699,8 +701,8 @@ mod tests {
 
         #[test]
         fn test_new_vector_field() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
-            let field_values = vec![[1.0, 0.0, 0.0]; grid.grid_points.len()];
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 11).unwrap();
+            let field_values = vec![[1.0, 0.0, 0.0]; grid.grid_points().len()];
             let vector_field =
                 VectorField1D::new_vector_field(&grid, &field_values).unwrap();
             assert_eq!(vector_field.grid, grid);
@@ -713,9 +715,9 @@ mod tests {
 
         #[test]
         fn test_new_vector_field_error() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 11).unwrap();
             let field_values =
-                vec![[1.0, 0.0, 0.0]; grid.grid_points.len() - 1];
+                vec![[1.0, 0.0, 0.0]; grid.grid_points().len() - 1];
             let result = VectorField1D::new_vector_field(&grid, &field_values);
             assert!(result.is_err());
             assert_eq!(
@@ -726,14 +728,14 @@ mod tests {
 
         #[test]
         fn test_function_to_vector_field() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 11).unwrap();
             let vector_field =
                 VectorField1D::function_to_vector_field(&grid, |x| {
                     [x, x.powi(2), x.powi(3)]
                 });
 
             let expected_field_values: Vec<[f64; 3]> = grid
-                .grid_points
+                .grid_points()
                 .iter()
                 .map(|&x| [x, x.powi(2), x.powi(3)])
                 .collect();
@@ -748,14 +750,14 @@ mod tests {
 
         #[test]
         fn test_new_constant_vector_field() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 11).unwrap();
             let field_value = [1.0, 0.0, 0.0];
             let vector_field =
                 VectorField1D::new_constant_vector_field(&grid, field_value);
             assert_eq!(vector_field.grid, grid);
             assert_eq!(
                 vector_field.field_values,
-                vec![field_value; grid.grid_points.len()]
+                vec![field_value; grid.grid_points().len()]
             );
             assert_eq!(
                 vector_field.boundary_conditions,
@@ -765,7 +767,7 @@ mod tests {
 
         #[test]
         fn test_vector_field_to_scalar_fields() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 11).unwrap();
             let vector_field = VectorField1D::new_constant_vector_field(
                 &grid,
                 [1.0, 2.0, 3.0],
@@ -787,7 +789,7 @@ mod tests {
 
         #[test]
         fn test_scalar_fields_to_vector_field() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 11).unwrap();
             let x_values = ScalarField1D::new_constant_scalar_field(&grid, 1.0);
             let y_values = ScalarField1D::new_constant_scalar_field(&grid, 2.0);
             let z_values = ScalarField1D::new_constant_scalar_field(&grid, 3.0);
@@ -810,9 +812,11 @@ mod tests {
 
         #[test]
         fn test_add_vector_fields() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
-            let field_values_1 = vec![[1.0, 0.0, 0.0]; grid.grid_points.len()];
-            let field_values_2 = vec![[0.0, 1.0, 0.0]; grid.grid_points.len()];
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 11).unwrap();
+            let field_values_1 =
+                vec![[1.0, 0.0, 0.0]; grid.grid_points().len()];
+            let field_values_2 =
+                vec![[0.0, 1.0, 0.0]; grid.grid_points().len()];
             let vector_field_1 =
                 VectorField1D::new_vector_field(&grid, &field_values_1)
                     .unwrap();
@@ -821,16 +825,18 @@ mod tests {
                     .unwrap();
             let vector_field_sum = vector_field_1.add(&vector_field_2).unwrap();
             let expected_field_values =
-                vec![[1.0, 1.0, 0.0]; grid.grid_points.len()];
+                vec![[1.0, 1.0, 0.0]; grid.grid_points().len()];
             assert_eq!(vector_field_sum.field_values, expected_field_values);
         }
 
         #[test]
         fn test_add_vector_fields_with_mismatched_grids() {
-            let grid1 = Grid::new_uniform_grid(0.0, 1.0, 11);
-            let grid2 = Grid::new_uniform_grid(0.0, 2.0, 11);
-            let field_values_1 = vec![[1.0, 0.0, 0.0]; grid1.grid_points.len()];
-            let field_values_2 = vec![[0.0, 1.0, 0.0]; grid2.grid_points.len()];
+            let grid1 = Grid::new_uniform_grid(0.0, 1.0, 11).unwrap();
+            let grid2 = Grid::new_uniform_grid(0.0, 2.0, 11).unwrap();
+            let field_values_1 =
+                vec![[1.0, 0.0, 0.0]; grid1.grid_points().len()];
+            let field_values_2 =
+                vec![[0.0, 1.0, 0.0]; grid2.grid_points().len()];
             let vector_field_1 =
                 VectorField1D::new_vector_field(&grid1, &field_values_1)
                     .unwrap();
@@ -847,9 +853,11 @@ mod tests {
 
         #[test]
         fn test_subtract_vector_fields() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
-            let field_values_1 = vec![[1.0, 1.0, 0.0]; grid.grid_points.len()];
-            let field_values_2 = vec![[0.0, 1.0, 0.0]; grid.grid_points.len()];
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 11).unwrap();
+            let field_values_1 =
+                vec![[1.0, 1.0, 0.0]; grid.grid_points().len()];
+            let field_values_2 =
+                vec![[0.0, 1.0, 0.0]; grid.grid_points().len()];
             let vector_field_1 =
                 VectorField1D::new_vector_field(&grid, &field_values_1)
                     .unwrap();
@@ -859,7 +867,7 @@ mod tests {
             let vector_field_difference =
                 vector_field_1.subtract(&vector_field_2).unwrap();
             let expected_field_values =
-                vec![[1.0, 0.0, 0.0]; grid.grid_points.len()];
+                vec![[1.0, 0.0, 0.0]; grid.grid_points().len()];
             assert_eq!(
                 vector_field_difference.field_values,
                 expected_field_values
@@ -868,10 +876,12 @@ mod tests {
 
         #[test]
         fn test_subtract_vector_fields_with_mismatched_grids() {
-            let grid1 = Grid::new_uniform_grid(0.0, 1.0, 11);
-            let grid2 = Grid::new_uniform_grid(0.0, 2.0, 11);
-            let field_values_1 = vec![[1.0, 1.0, 0.0]; grid1.grid_points.len()];
-            let field_values_2 = vec![[0.0, 1.0, 0.0]; grid2.grid_points.len()];
+            let grid1 = Grid::new_uniform_grid(0.0, 1.0, 11).unwrap();
+            let grid2 = Grid::new_uniform_grid(0.0, 2.0, 11).unwrap();
+            let field_values_1 =
+                vec![[1.0, 1.0, 0.0]; grid1.grid_points().len()];
+            let field_values_2 =
+                vec![[0.0, 1.0, 0.0]; grid2.grid_points().len()];
             let vector_field_1 =
                 VectorField1D::new_vector_field(&grid1, &field_values_1)
                     .unwrap();
@@ -888,13 +898,13 @@ mod tests {
 
         #[test]
         fn test_scale_vector_field() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
-            let field_values = vec![[1.0, 2.0, 3.0]; grid.grid_points.len()];
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 11).unwrap();
+            let field_values = vec![[1.0, 2.0, 3.0]; grid.grid_points().len()];
             let vector_field =
                 VectorField1D::new_vector_field(&grid, &field_values).unwrap();
             let scaled_vector_field = vector_field.scale(2.0);
             let expected_field_values =
-                vec![[2.0, 4.0, 6.0]; grid.grid_points.len()];
+                vec![[2.0, 4.0, 6.0]; grid.grid_points().len()];
             assert_eq!(scaled_vector_field.field_values, expected_field_values);
         }
     }
@@ -904,9 +914,11 @@ mod tests {
 
         #[test]
         fn test_dot_product() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
-            let field_values_1 = vec![[1.0, 2.0, 3.0]; grid.grid_points.len()];
-            let field_values_2 = vec![[4.0, 5.0, 6.0]; grid.grid_points.len()];
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 11).unwrap();
+            let field_values_1 =
+                vec![[1.0, 2.0, 3.0]; grid.grid_points().len()];
+            let field_values_2 =
+                vec![[4.0, 5.0, 6.0]; grid.grid_points().len()];
             let vector_field_1 =
                 VectorField1D::new_vector_field(&grid, &field_values_1)
                     .unwrap();
@@ -915,16 +927,18 @@ mod tests {
                     .unwrap();
             let dot_product_field =
                 vector_field_1.dot_product(&vector_field_2).unwrap();
-            let expected_values = vec![32.0; grid.grid_points.len()];
+            let expected_values = vec![32.0; grid.grid_points().len()];
             assert_eq!(dot_product_field.field_values, expected_values);
         }
 
         #[test]
         fn test_dot_product_with_mismatched_grids() {
-            let grid1 = Grid::new_uniform_grid(0.0, 1.0, 11);
-            let grid2 = Grid::new_uniform_grid(0.0, 2.0, 11);
-            let field_values_1 = vec![[1.0, 2.0, 3.0]; grid1.grid_points.len()];
-            let field_values_2 = vec![[4.0, 5.0, 6.0]; grid2.grid_points.len()];
+            let grid1 = Grid::new_uniform_grid(0.0, 1.0, 11).unwrap();
+            let grid2 = Grid::new_uniform_grid(0.0, 2.0, 11).unwrap();
+            let field_values_1 =
+                vec![[1.0, 2.0, 3.0]; grid1.grid_points().len()];
+            let field_values_2 =
+                vec![[4.0, 5.0, 6.0]; grid2.grid_points().len()];
             let vector_field_1 =
                 VectorField1D::new_vector_field(&grid1, &field_values_1)
                     .unwrap();
@@ -941,9 +955,11 @@ mod tests {
 
         #[test]
         fn test_cross_product() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
-            let field_values_1 = vec![[1.0, 2.0, 3.0]; grid.grid_points.len()];
-            let field_values_2 = vec![[4.0, 5.0, 6.0]; grid.grid_points.len()];
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 11).unwrap();
+            let field_values_1 =
+                vec![[1.0, 2.0, 3.0]; grid.grid_points().len()];
+            let field_values_2 =
+                vec![[4.0, 5.0, 6.0]; grid.grid_points().len()];
             let vector_field_1 =
                 VectorField1D::new_vector_field(&grid, &field_values_1)
                     .unwrap();
@@ -953,16 +969,18 @@ mod tests {
             let cross_product_field =
                 vector_field_1.cross_product(&vector_field_2).unwrap();
             let expected_values =
-                vec![[-3.0, 6.0, -3.0]; grid.grid_points.len()];
+                vec![[-3.0, 6.0, -3.0]; grid.grid_points().len()];
             assert_eq!(cross_product_field.field_values, expected_values);
         }
 
         #[test]
         fn test_cross_product_with_mismatched_grids() {
-            let grid1 = Grid::new_uniform_grid(0.0, 1.0, 11);
-            let grid2 = Grid::new_uniform_grid(0.0, 2.0, 11);
-            let field_values_1 = vec![[1.0, 2.0, 3.0]; grid1.grid_points.len()];
-            let field_values_2 = vec![[4.0, 5.0, 6.0]; grid2.grid_points.len()];
+            let grid1 = Grid::new_uniform_grid(0.0, 1.0, 11).unwrap();
+            let grid2 = Grid::new_uniform_grid(0.0, 2.0, 11).unwrap();
+            let field_values_1 =
+                vec![[1.0, 2.0, 3.0]; grid1.grid_points().len()];
+            let field_values_2 =
+                vec![[4.0, 5.0, 6.0]; grid2.grid_points().len()];
             let vector_field_1 =
                 VectorField1D::new_vector_field(&grid1, &field_values_1)
                     .unwrap();
@@ -983,7 +1001,7 @@ mod tests {
 
         #[test]
         fn test_check_vector_bcs_none() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 11).unwrap();
             let vector_field = VectorField1D::new_constant_vector_field(
                 &grid,
                 [1.0, 0.0, 0.0],
@@ -995,9 +1013,9 @@ mod tests {
 
         #[test]
         fn test_check_vector_bcs_periodic() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 11).unwrap();
             let mut field_values =
-                vec![[1.0, 0.0, 0.0]; grid.grid_points.len()];
+                vec![[1.0, 0.0, 0.0]; grid.grid_points().len()];
             field_values[0] = [2.0, 0.0, 0.0];
             field_values[10] = [2.0, 0.0, 0.0];
             let vector_field =
@@ -1009,9 +1027,9 @@ mod tests {
 
         #[test]
         fn test_check_vector_bcs_periodic_error() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 11).unwrap();
             let mut field_values =
-                vec![[1.0, 0.0, 0.0]; grid.grid_points.len()];
+                vec![[1.0, 0.0, 0.0]; grid.grid_points().len()];
             field_values[0] = [2.0, 0.0, 0.0];
             field_values[10] = [3.0, 0.0, 0.0];
             let vector_field =
@@ -1029,9 +1047,9 @@ mod tests {
 
         #[test]
         fn test_check_vector_bcs_dirichlet() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 11).unwrap();
             let mut field_values =
-                vec![[1.0, 0.0, 0.0]; grid.grid_points.len()];
+                vec![[1.0, 0.0, 0.0]; grid.grid_points().len()];
             field_values[0] = [2.0, 0.0, 0.0];
             field_values[10] = [3.0, 0.0, 0.0];
             let vector_field =
@@ -1048,9 +1066,9 @@ mod tests {
 
         #[test]
         fn test_check_vector_bcs_dirichlet_error() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 11).unwrap();
             let mut field_values =
-                vec![[1.0, 0.0, 0.0]; grid.grid_points.len()];
+                vec![[1.0, 0.0, 0.0]; grid.grid_points().len()];
             field_values[0] = [2.0, 0.0, 0.0];
             field_values[10] = [3.0, 0.0, 0.0];
             let vector_field =
@@ -1071,9 +1089,9 @@ mod tests {
 
         #[test]
         fn test_check_vector_bcs_neumann() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 11).unwrap();
             let mut field_values =
-                vec![[1.0, 0.0, 0.0]; grid.grid_points.len()];
+                vec![[1.0, 0.0, 0.0]; grid.grid_points().len()];
             field_values[0] = [1.0, 0.0, 0.0];
             field_values[10] = [1.0, 0.0, 0.0];
             let vector_field =
@@ -1093,7 +1111,7 @@ mod tests {
 
         #[test]
         fn test_check_vector_bcs_error_for_few_points() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 1);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 1).unwrap();
             let vector_field = VectorField1D::new_constant_vector_field(
                 &grid,
                 [1.0, 0.0, 0.0],
@@ -1109,7 +1127,7 @@ mod tests {
 
         #[test]
         fn test_check_vector_bcs_error_for_scalar_bcs() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 11).unwrap();
             let vector_field = VectorField1D::new_constant_vector_field(
                 &grid,
                 [1.0, 0.0, 0.0],
@@ -1141,7 +1159,7 @@ mod tests {
 
         #[test]
         fn test_apply_vector_bcs_none() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 11).unwrap();
             let vector_field = VectorField1D::new_constant_vector_field(
                 &grid,
                 [1.0, 0.0, 0.0],
@@ -1157,9 +1175,9 @@ mod tests {
 
         #[test]
         fn test_apply_vector_bcs_periodic() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 11).unwrap();
             let mut field_values =
-                vec![[1.0, 0.0, 0.0]; grid.grid_points.len()];
+                vec![[1.0, 0.0, 0.0]; grid.grid_points().len()];
             field_values[0] = [2.0, 0.0, 0.0];
             field_values[10] = [2.0, 0.0, 0.0];
             let vector_field =
@@ -1180,9 +1198,9 @@ mod tests {
 
         #[test]
         fn test_apply_vector_bcs_periodic_error() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 11).unwrap();
             let mut field_values =
-                vec![[1.0, 0.0, 0.0]; grid.grid_points.len()];
+                vec![[1.0, 0.0, 0.0]; grid.grid_points().len()];
             field_values[0] = [2.0, 0.0, 0.0];
             field_values[10] = [3.0, 0.0, 0.0];
             let vector_field =
@@ -1200,7 +1218,7 @@ mod tests {
 
         #[test]
         fn test_apply_vector_bcs_dirichlet() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 11).unwrap();
             let vector_field = VectorField1D::new_constant_vector_field(
                 &grid,
                 [1.0, 0.0, 0.0],
@@ -1226,7 +1244,7 @@ mod tests {
 
         #[test]
         fn test_apply_vector_bcs_dirichlet_error() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 11).unwrap();
             let vector_field = VectorField1D::new_constant_vector_field(
                 &grid,
                 [1.0, 0.0, 0.0],
@@ -1246,7 +1264,7 @@ mod tests {
 
         #[test]
         fn test_apply_vector_bcs_neumann() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 11).unwrap();
             let vector_field = VectorField1D::new_constant_vector_field(
                 &grid,
                 [1.0, 0.0, 0.0],
@@ -1273,7 +1291,7 @@ mod tests {
 
         #[test]
         fn test_apply_vector_bcs_error_for_few_points() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 1);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 1).unwrap();
             let vector_field = VectorField1D::new_constant_vector_field(
                 &grid,
                 [1.0, 0.0, 0.0],
@@ -1289,7 +1307,7 @@ mod tests {
 
         #[test]
         fn test_apply_vector_bcs_error_for_scalar_bcs() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 11);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 11).unwrap();
             let vector_field = VectorField1D::new_constant_vector_field(
                 &grid,
                 [1.0, 0.0, 0.0],
@@ -1323,7 +1341,7 @@ mod tests {
 
         #[test]
         fn test_partial_x() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 100);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 100).unwrap();
 
             // Test the derivative of a constant vector field.
             let v_x = ScalarField1D::new_constant_scalar_field(&grid, 1.0);
@@ -1371,7 +1389,7 @@ mod tests {
 
         #[test]
         fn test_laplacian() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 100);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 100).unwrap();
 
             // Test the Laplacian of a constant vector field.
             let v_x = ScalarField1D::new_constant_scalar_field(&grid, 1.0);
@@ -1420,7 +1438,7 @@ mod tests {
 
         #[test]
         fn test_divergence() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 100);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 100).unwrap();
 
             // Test the divergence of a constant vector field.
             let vector_field = VectorField1D::new_constant_vector_field(
@@ -1498,7 +1516,7 @@ mod tests {
 
         #[test]
         fn test_curl() {
-            let grid = Grid::new_uniform_grid(0.0, 1.0, 100);
+            let grid = Grid::new_uniform_grid(0.0, 1.0, 100).unwrap();
 
             // Test the curl of a constant vector field.
             let vector_field = VectorField1D::new_constant_vector_field(
