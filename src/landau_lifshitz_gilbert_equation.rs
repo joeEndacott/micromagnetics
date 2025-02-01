@@ -125,7 +125,7 @@ mod tests {
 
     #[test]
     fn test_get_effective_field() {
-        let grid = Grid::new_uniform_grid(0.0, 1.0, 100);
+        let grid = Grid::new_uniform_grid(0.0, 1.0, 100).unwrap();
         let exchange_constant = 1.0;
         let dmi_constant = 1.0;
         let magnetization =
@@ -145,7 +145,7 @@ mod tests {
 
     #[test]
     fn test_exchange_effective_field() {
-        let grid = Grid::new_uniform_grid(0.0, 1.0, 100);
+        let grid = Grid::new_uniform_grid(0.0, 1.0, 100).unwrap();
         let exchange_constant = 1.0;
         let magnetization =
             VectorField1D::new_constant_vector_field(&grid, [0.0, 0.0, 1.0]);
@@ -161,7 +161,7 @@ mod tests {
 
     #[test]
     fn test_dmi_effective_field() {
-        let grid = Grid::new_uniform_grid(0.0, 1.0, 100);
+        let grid = Grid::new_uniform_grid(0.0, 1.0, 100).unwrap();
         let dmi_constant = 1.0;
         let magnetization =
             VectorField1D::new_constant_vector_field(&grid, [0.0, 0.0, 1.0]);
@@ -176,7 +176,7 @@ mod tests {
 
     #[test]
     fn test_landau_lifshitz_gilbert_rhs() {
-        let grid = Grid::new_uniform_grid(0.0, 1.0, 100);
+        let grid = Grid::new_uniform_grid(0.0, 1.0, 100).unwrap();
         let exchange_constant = 1.0;
         let dmi_constant = 1.0;
         let alpha = 0.1;
